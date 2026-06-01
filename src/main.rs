@@ -36,7 +36,7 @@ struct General;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    dotenv().ok(); // Reads .env if present
+    dotenv().ok();
 
     let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN in environment");
 
