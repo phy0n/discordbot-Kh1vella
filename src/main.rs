@@ -28,14 +28,19 @@ use crate::commands::{
 const OWNER_ID: u64 = 494169184175915019;
 
 #[group]
-#[owners_only]
 #[commands(
     join, leave, play, pause, resume, skip, stop, queue,
-    kick, ban, unban, purge, timeout,
-    lock, unlock, slowmode,
     ping, userinfo, serverinfo, avatar, help
 )]
-struct General;
+struct Public;
+
+#[group]
+#[owners_only]
+#[commands(
+    kick, ban, unban, purge, timeout,
+    lock, unlock, slowmode, chatbot
+)]
+struct Owner;
 
 #[tokio::main]
 async fn main() {
@@ -52,7 +57,8 @@ async fn main() {
         .owners(owners);
 
     let mut framework = StandardFramework::new()
-        .group(&GENERAL_GROUP);
+        .group(&PUBLIC_GROUP)
+        .group(&OWNER_GROUP);
     framework.configure(config);
 
     let intents = GatewayIntents::non_privileged() 
@@ -63,6 +69,7 @@ async fn main() {
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .framework(framework)
+        .type_map_insert::<crate::handler::ChatbotState>(std::sync::Arc::new(tokio::sync::RwLock::new(true)))
         .register_songbird()
         .await
         .expect("Error creating client");

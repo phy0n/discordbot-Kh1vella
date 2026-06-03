@@ -15,14 +15,53 @@ pub async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 pub async fn serverinfo(ctx: &Context, msg: &Message) -> CommandResult {
-    let (guild_id, name, member_count) = {
-        let guild = msg.guild(&ctx.cache).unwrap();
-        (guild.id, guild.name.clone(), guild.approximate_member_count.unwrap_or(0))
+    let guild_id = msg.guild_id.unwrap();
+    let guild = match ctx.http.get_guild_with_counts(guild_id).await {
+        Ok(g) => g,
+        Err(_) => {
+            send_embed(ctx, msg, "Error", "Could not fetch server information.", 0xED4245).await?;
+            return Ok(());
+        }
     };
 
-    let desc = format!("**Name:** {}\n**ID:** {}\n**Members:** {}", name, guild_id, member_count);
+    let owner = guild.owner_id.to_user(&ctx.http).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
+    let created_timestamp = guild_id.created_at().unix_timestamp();
     
-    send_embed(ctx, msg, "Server Information", &desc, 0x2b2d31).await?;
+    let desc = format!(
+        "**General Information**\n\
+        **Name:** {}\n\
+        **ID:** {}\n\
+        **Owner:** {} (`{}`)\n\
+        **Created At:** <t:{}:F>\n\
+        \n\
+        **Statistics**\n\
+        **Members (Approx):** {}\n\
+        **Roles:** {}\n\
+        **Boost Tier:** {:?}\n\
+        **Boost Count:** {}",
+        guild.name,
+        guild.id,
+        owner, guild.owner_id,
+        created_timestamp,
+        guild.approximate_member_count.unwrap_or(0),
+        guild.roles.len(),
+        guild.premium_tier,
+        guild.premium_subscription_count.unwrap_or(0)
+    );
+
+    let mut embed = create_embed("Server Information", &desc, 0x2b2d31);
+    
+    if let Some(icon) = guild.icon_url() {
+        embed = embed.thumbnail(icon);
+    }
+    
+    if let Some(banner) = guild.banner_url() {
+        embed = embed.image(banner);
+    }
+
+    let builder = CreateMessage::new().embed(embed);
+    msg.channel_id.send_message(&ctx.http, builder).await?;
+
     Ok(())
 }
 
@@ -44,11 +83,44 @@ pub async fn userinfo(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
         msg.mentions[0].clone()
     };
 
-    let desc = format!("**Username:** {}\n**ID:** {}", user.name, user.id);
-    let mut embed = create_embed("User Information", &desc, 0x2b2d31);
+    let member = msg.guild_id.unwrap().member(&ctx.http, user.id).await.ok();
+    let created_timestamp = user.id.created_at().unix_timestamp();
+    
+    let mut desc = format!(
+        "**User Information**\n\
+        **Username:** {}\n\
+        **Global Name:** {}\n\
+        **ID:** {}\n\
+        **Bot:** {}\n\
+        **Created At:** <t:{}:F>\n",
+        user.name,
+        user.global_name.as_deref().unwrap_or("None"),
+        user.id,
+        if user.bot { "Yes" } else { "No" },
+        created_timestamp
+    );
+
+    if let Some(m) = member {
+        if let Some(joined) = m.joined_at {
+            let joined_ts = joined.unix_timestamp();
+            desc.push_str(&format!("\n**Server Profile**\n**Joined At:** <t:{}:F>\n", joined_ts));
+        }
+        
+        let roles = m.roles;
+        if !roles.is_empty() {
+            let roles_str: Vec<String> = roles.iter().map(|r| format!("<@&{}>", r)).collect();
+            desc.push_str(&format!("\n**Roles ({})**\n{}", roles.len(), roles_str.join(", ")));
+        }
+    }
+
+    let mut embed = create_embed("User Profile", &desc, 0x2b2d31);
     
     if let Some(avatar_url) = user.avatar_url() {
         embed = embed.thumbnail(avatar_url);
+    }
+    
+    if let Some(banner) = user.banner_url() {
+        embed = embed.image(banner);
     }
 
     let builder = CreateMessage::new().embed(embed);
@@ -90,13 +162,13 @@ pub async fn help(ctx: &Context, msg: &Message) -> CommandResult {
     let desc = "\
     **Music Commands**\n\
     `kh!join` - Joins the voice channel.\n\
-    `kh!leave` / `kh!dc` - Leaves the voice channel.\n\
-    `kh!play <url/query>` / `kh!p` - Plays a song.\n\
+    `kh!leave` - Leaves the voice channel.\n\
+    `kh!play <url/query>` - Plays a song.\n\
     `kh!pause` - Pauses playback.\n\
     `kh!resume` - Resumes playback.\n\
-    `kh!skip` / `kh!s` - Skips the track.\n\
+    `kh!skip` - Skips the track.\n\
     `kh!stop` - Stops playback.\n\
-    `kh!queue` / `kh!q` - Shows queue length.\n\
+    `kh!queue` - Shows queue length.\n\
     \n\
     **Moderation Commands**\n\
     `kh!kick <@user>` - Kicks a user.\n\

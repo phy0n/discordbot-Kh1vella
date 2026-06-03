@@ -8,6 +8,7 @@ use serenity::{
     builder::EditChannel,
 };
 use crate::utils::embeds::send_embed;
+use crate::handler::ChatbotState;
 
 #[command]
 #[only_in(guilds)]
@@ -97,5 +98,29 @@ pub async fn slowmode(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
     };
 
     send_embed(ctx, msg, "Admin: Slowmode", &status_text, 0x2b2d31).await?;
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+pub async fn chatbot(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    let action = args.single::<String>().unwrap_or_default().to_lowercase();
+    
+    if action == "enable" || action == "on" {
+        let mut data = ctx.data.write().await;
+        if let Some(state) = data.get_mut::<ChatbotState>() {
+            *state.write().await = true;
+        }
+        send_embed(ctx, msg, "Chatbot AI", "✅ Gemini AI Chatbot has been **ENABLED**.\nThe bot will now reply to tags and replies.", 0x2b2d31).await?;
+    } else if action == "disable" || action == "off" {
+        let mut data = ctx.data.write().await;
+        if let Some(state) = data.get_mut::<ChatbotState>() {
+            *state.write().await = false;
+        }
+        send_embed(ctx, msg, "Chatbot AI", "❌ Gemini AI Chatbot has been **DISABLED**.", 0x2b2d31).await?;
+    } else {
+        send_embed(ctx, msg, "Error", "Usage: `kh!chatbot enable` or `kh!chatbot disable`", 0xED4245).await?;
+    }
+    
     Ok(())
 }

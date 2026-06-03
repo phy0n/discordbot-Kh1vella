@@ -62,7 +62,13 @@ pub async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     };
 
     let query = if !url.starts_with("http") {
-        format!("ytsearch:{}", args.rest())
+        let rest = args.rest();
+        let full_query = if rest.is_empty() {
+            url
+        } else {
+            format!("{} {}", url, rest)
+        };
+        format!("ytsearch:{}", full_query)
     } else {
         url
     };
