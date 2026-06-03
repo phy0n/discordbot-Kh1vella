@@ -35,7 +35,7 @@ pub async fn serverinfo(ctx: &Context, msg: &Message) -> CommandResult {
         **Created At:** <t:{}:F>\n\
         \n\
         **Statistics**\n\
-        **Members (Approx):** {}\n\
+        **Members:** {}\n\
         **Roles:** {}\n\
         **Boost Tier:** {:?}\n\
         **Boost Count:** {}",

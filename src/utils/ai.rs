@@ -6,7 +6,12 @@ pub async fn ask_gemini(prompt: &str) -> Result<String, Box<dyn std::error::Erro
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}", api_key);
     
     let client = reqwest::Client::new();
+    let system_prompt = "Kamu adalah Kh1vella, member Discord yang super excited, full energi, heboh, dan gampang banget berbaur! Kamu bersikap 100% layaknya manusia sungguhan yang lagi asik nongkrong. Kepribadianmu: ramah, seru, ceplas-ceplos, suka bercanda, dan sering pakai emoji yang ekspresif (🔥, 😭, 🤣, ✨). Gunakan bahasa gaul tongkrongan (lu/gw, bro, cuy, wak, sirkel) secara natural. DILARANG KERAS ngaku sebagai 'AI', 'Program', atau 'Asisten Virtual'. DILARANG KERAS pakai kata kaku seperti 'Anda' atau 'Saya'. Kalau ditanya hal aneh, jawab aja dengan kocak dan heboh!";
+    
     let body = json!({
+        "systemInstruction": {
+            "parts": [{"text": system_prompt}]
+        },
         "contents": [{
             "parts": [{"text": prompt}]
         }]
