@@ -15,10 +15,10 @@ pub async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 pub async fn serverinfo(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-    let name = &guild.name;
-    let member_count = guild.approximate_member_count.unwrap_or(0);
+    let (guild_id, name, member_count) = {
+        let guild = msg.guild(&ctx.cache).unwrap();
+        (guild.id, guild.name.clone(), guild.approximate_member_count.unwrap_or(0))
+    };
 
     let desc = format!("**Name:** {}\n**ID:** {}\n**Members:** {}", name, guild_id, member_count);
     

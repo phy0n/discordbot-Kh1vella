@@ -9,10 +9,11 @@ use crate::utils::embeds::send_embed;
 #[command]
 #[only_in(guilds)]
 pub async fn join(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let guild_id = guild.id;
-
-    let channel_id = guild.voice_states.get(&msg.author.id).and_then(|vs| vs.channel_id);
+    let guild_id = msg.guild_id.unwrap();
+    let channel_id = {
+        let guild = msg.guild(&ctx.cache).unwrap();
+        guild.voice_states.get(&msg.author.id).and_then(|vs| vs.channel_id)
+    };
 
     let connect_to = match channel_id {
         Some(channel) => channel,
@@ -70,8 +71,10 @@ pub async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     let manager = songbird::get(ctx).await.expect("Songbird client.").clone();
 
     if manager.get(guild_id).is_none() {
-        let guild = msg.guild(&ctx.cache).unwrap();
-        let channel_id = guild.voice_states.get(&msg.author.id).and_then(|vs| vs.channel_id);
+        let channel_id = {
+            let guild = msg.guild(&ctx.cache).unwrap();
+            guild.voice_states.get(&msg.author.id).and_then(|vs| vs.channel_id)
+        };
 
         if let Some(channel) = channel_id {
             manager.join(guild_id, channel).await.unwrap();

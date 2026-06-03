@@ -45,9 +45,13 @@ async fn main() {
     let mut owners = HashSet::new();
     owners.insert(UserId::new(OWNER_ID));
 
+    let config = serenity::framework::standard::Configuration::new()
+        .prefix("kh!")
+        .owners(owners);
+
     let framework = StandardFramework::new()
-        .configure(|c| c.prefix("kh!").owners(owners))
-        .group(&GENERAL_GROUP);
+        .group(&GENERAL_GROUP)
+        .configure(config);
 
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT

@@ -13,8 +13,7 @@ use crate::utils::embeds::send_embed;
 #[only_in(guilds)]
 #[required_permissions("MANAGE_CHANNELS")]
 pub async fn lock(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let everyone_role_id = guild.id.everyone_role();
+    let everyone_role_id = serenity::model::id::RoleId::new(msg.guild_id.unwrap().get());
     
     let channel = match msg.channel_id.to_channel(&ctx.http).await {
         Ok(c) => c.guild(),
@@ -43,8 +42,7 @@ pub async fn lock(ctx: &Context, msg: &Message) -> CommandResult {
 #[only_in(guilds)]
 #[required_permissions("MANAGE_CHANNELS")]
 pub async fn unlock(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild = msg.guild(&ctx.cache).unwrap();
-    let everyone_role_id = guild.id.everyone_role();
+    let everyone_role_id = serenity::model::id::RoleId::new(msg.guild_id.unwrap().get());
     
     let channel = match msg.channel_id.to_channel(&ctx.http).await {
         Ok(c) => c.guild(),
