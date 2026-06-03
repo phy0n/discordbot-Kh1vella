@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 mod commands;
 mod utils;
 mod handler;
@@ -49,9 +51,9 @@ async fn main() {
         .prefix("kh!")
         .owners(owners);
 
-    let framework = StandardFramework::new()
-        .group(&GENERAL_GROUP)
-        .configure(config);
+    let mut framework = StandardFramework::new()
+        .group(&GENERAL_GROUP);
+    framework.configure(config);
 
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT

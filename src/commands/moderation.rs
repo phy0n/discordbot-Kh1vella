@@ -154,7 +154,7 @@ pub async fn timeout(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
         return Ok(());
     }
 
-    let timestamp = Timestamp::now() + Duration::from_secs((duration_minutes * 60) as u64);
+    let timestamp = Timestamp::from_unix_timestamp(Timestamp::now().unix_timestamp() + (duration_minutes * 60) as i64).unwrap();
 
     if let Some(guild_id) = msg.guild_id {
         let mut member = guild_id.member(&ctx.http, user_to_timeout.id).await?;
