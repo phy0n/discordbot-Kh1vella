@@ -111,13 +111,13 @@ pub async fn chatbot(ctx: &Context, msg: &Message, mut args: Args) -> CommandRes
         if let Some(state) = data.get_mut::<ChatbotState>() {
             *state.write().await = true;
         }
-        send_embed(ctx, msg, "Chatbot AI", "✅ Gemini AI Chatbot has been **ENABLED**.\nThe bot will now reply to tags and replies.", 0x2b2d31).await?;
+        send_embed(ctx, msg, "Chatbot AI", "Chatbot AI has been **ENABLED**.\nThe bot will now reply to tags and replies.", 0x2b2d31).await?;
     } else if action == "disable" || action == "off" {
         let mut data = ctx.data.write().await;
         if let Some(state) = data.get_mut::<ChatbotState>() {
             *state.write().await = false;
         }
-        send_embed(ctx, msg, "Chatbot AI", "❌ Gemini AI Chatbot has been **DISABLED**.", 0x2b2d31).await?;
+        send_embed(ctx, msg, "Chatbot AI", "Chatbot AI has been **DISABLED**.", 0x2b2d31).await?;
     } else {
         send_embed(ctx, msg, "Error", "Usage: `kh!chatbot enable` or `kh!chatbot disable`", 0xED4245).await?;
     }
