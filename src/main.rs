@@ -22,6 +22,7 @@ use crate::commands::{
 
 #[tokio::main]
 async fn main() {
+    let start_time = std::time::Instant::now();
     tracing_subscriber::fmt::init();
     dotenv().ok();
 
@@ -72,7 +73,7 @@ async fn main() {
     let cache = client.cache.clone();
     let http = client.http.clone();
     tokio::spawn(async move {
-        api::start_api_server(api_chatbot_state, cache, http).await;
+        api::start_api_server(api_chatbot_state, cache, http, start_time).await;
     });
 
     if let Err(why) = client.start().await {

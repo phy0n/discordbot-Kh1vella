@@ -8,6 +8,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 use tokio::sync::RwLock;
+use std::time::Instant;
+use sysinfo::System;
 use serenity::all::{Cache, Http};
 use serenity::model::id::ChannelId;
 
@@ -19,11 +21,21 @@ struct GuildInfo {
 }
 
 #[derive(Serialize)]
+struct SystemInfo {
+    uptime_seconds: u64,
+    ram_used_mb: u64,
+    ram_total_mb: u64,
+    cpu_cores: usize,
+    os_name: String,
+}
+
+#[derive(Serialize)]
 struct StatusResponse {
     status: String,
     chatbot_enabled: bool,
     guilds: Vec<GuildInfo>,
     total_members: u64,
+    system: SystemInfo,
 }
 
 #[derive(Clone)]
@@ -31,6 +43,7 @@ pub struct ApiState {
     pub chatbot_enabled: Arc<RwLock<bool>>,
     pub discord_cache: Arc<Cache>,
     pub discord_http: Arc<Http>,
+    pub start_time: Instant,
 }
 
 async fn get_status(State(state): State<ApiState>) -> Json<StatusResponse> {
@@ -52,11 +65,25 @@ async fn get_status(State(state): State<ApiState>) -> Json<StatusResponse> {
         }
     }
 
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    
+    let uptime = state.start_time.elapsed().as_secs();
+    
+    let system_info = SystemInfo {
+        uptime_seconds: uptime,
+        ram_used_mb: sys.used_memory() / 1048576,
+        ram_total_mb: sys.total_memory() / 1048576,
+        cpu_cores: sys.cpus().len(),
+        os_name: System::name().unwrap_or_else(|| "Unknown OS".to_string()),
+    };
+
     Json(StatusResponse {
         status: "online".to_string(),
         chatbot_enabled: enabled,
         guilds: guilds_info,
         total_members,
+        system: system_info,
     })
 }
 
@@ -102,11 +129,12 @@ async fn send_message(
     }
 }
 
-pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord_cache: Arc<Cache>, discord_http: Arc<Http>) {
+pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord_cache: Arc<Cache>, discord_http: Arc<Http>, start_time: Instant) {
     let api_state = ApiState {
         chatbot_enabled: chatbot_state,
         discord_cache,
         discord_http,
+        start_time,
     };
 
     let app = Router::new()
