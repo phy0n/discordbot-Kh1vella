@@ -37,16 +37,7 @@ pub async fn event_handler(
                 }
 
                 let _ = msg.channel_id.broadcast_typing(&ctx.http).await;
-
-                match ask_gemini(&prompt).await {
-                    Ok(reply) => {
-                        let _ = msg.reply(&ctx.http, reply).await;
-                    }
-                    Err(e) => {
-                        error!("Gemini API Error: {}", e);
-                        let _ = msg.reply(&ctx.http, "Maaf, sistem AI sedang offline atau limit API tercapai.").await;
-                    }
-                }
+                crate::utils::ai::handle_chat(ctx, msg, data, &prompt).await;
             }
         }
     }

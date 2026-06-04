@@ -45,6 +45,22 @@ async fn main() {
         }
     };
     info!("Connected to Supabase PostgreSQL");
+    
+    // Initialize Memory Table
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_memory (
+            user_id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            favorite_game TEXT,
+            favorite_food TEXT,
+            about_user TEXT,
+            relationship_score INT DEFAULT 0,
+            last_interaction TIMESTAMPTZ DEFAULT NOW()
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_memory table: {:?}", e);
+        Default::default()
+    });
 
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
@@ -52,6 +68,7 @@ async fn main() {
         | GatewayIntents::GUILD_MESSAGES;
 
     let chatbot_state = std::sync::Arc::new(tokio::sync::RwLock::new(true));
+    let chat_history = std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
     let api_chatbot_state = chatbot_state.clone();
 
     let framework_pool = pool.clone();
@@ -81,6 +98,7 @@ async fn main() {
                 Ok(Data {
                     chatbot_enabled: chatbot_state,
                     db_pool: framework_pool,
+                    chat_history,
                 })
             })
         })
