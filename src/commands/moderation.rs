@@ -103,7 +103,7 @@ pub async fn purge(
     // or we can just send it normally and delete it later if prefix command.
     if ctx.prefix() != "/" {
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-        let _ = reply.delete().await;
+        let _ = reply.delete(ctx).await;
     }
 
     Ok(())

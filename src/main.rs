@@ -63,15 +63,16 @@ async fn main() {
         })
         .build();
 
-    let mut client = serenity::ClientBuilder::new(&token, intents)
+    let mut client = serenity::Client::builder(&token, intents)
         .framework(framework)
         .register_songbird()
         .await
         .expect("Error creating client");
 
-    let cache_and_http = client.cache_and_http.clone();
+    let cache = client.cache.clone();
+    let http = client.http.clone();
     tokio::spawn(async move {
-        api::start_api_server(api_chatbot_state, cache_and_http).await;
+        api::start_api_server(api_chatbot_state, cache, http).await;
     });
 
     if let Err(why) = client.start().await {

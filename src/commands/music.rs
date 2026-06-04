@@ -89,7 +89,7 @@ pub async fn play(
         let src = YoutubeDl::new(http_client, query_text);
         let track_handle = handler.enqueue_input(src.into()).await;
         
-        let _ = track_handle.add_event(Event::Error, TrackErrorNotifier);
+        let _ = track_handle.add_event(Event::Track(TrackEvent::Error), TrackErrorNotifier);
         
         send_embed(ctx, "Playback", "Track has been added to the queue.", 0x2b2d31).await?;
     } else {

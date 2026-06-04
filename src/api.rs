@@ -8,7 +8,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 use tokio::sync::RwLock;
-use serenity::all::CacheAndHttp;
+use serenity::all::{Cache, Http};
 use serenity::model::id::ChannelId;
 
 #[derive(Serialize)]
@@ -29,7 +29,8 @@ struct StatusResponse {
 #[derive(Clone)]
 pub struct ApiState {
     pub chatbot_enabled: Arc<RwLock<bool>>,
-    pub discord: Arc<CacheAndHttp>,
+    pub discord_cache: Arc<Cache>,
+    pub discord_http: Arc<Http>,
 }
 
 async fn get_status(State(state): State<ApiState>) -> Json<StatusResponse> {
@@ -38,9 +39,9 @@ async fn get_status(State(state): State<ApiState>) -> Json<StatusResponse> {
     let mut guilds_info = Vec::new();
     let mut total_members = 0;
     
-    let guild_ids = state.discord.cache.guilds();
+    let guild_ids = state.discord_cache.guilds();
     for guild_id in guild_ids {
-        if let Some(guild) = state.discord.cache.guild(guild_id) {
+        if let Some(guild) = state.discord_cache.guild(guild_id) {
             let count = guild.member_count as u64;
             guilds_info.push(GuildInfo {
                 id: guild.id.to_string(),
@@ -92,7 +93,7 @@ async fn send_message(
         let channel_id = ChannelId::new(ch_id);
         let builder = serenity::builder::CreateMessage::new().content(payload.content);
         
-        match channel_id.send_message(&state.discord.http, builder).await {
+        match channel_id.send_message(&state.discord_http, builder).await {
             Ok(_) => Json(SendMessageResponse { success: true, error: None }),
             Err(e) => Json(SendMessageResponse { success: false, error: Some(e.to_string()) }),
         }
@@ -101,10 +102,11 @@ async fn send_message(
     }
 }
 
-pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord: Arc<CacheAndHttp>) {
+pub async fn start_api_server(chatbot_state: Arc<RwLock<bool>>, discord_cache: Arc<Cache>, discord_http: Arc<Http>) {
     let api_state = ApiState {
         chatbot_enabled: chatbot_state,
-        discord,
+        discord_cache,
+        discord_http,
     };
 
     let app = Router::new()
