@@ -45,8 +45,7 @@ async fn main() {
         }
     };
     info!("Connected to Supabase PostgreSQL");
-    
-    // Initialize Memory Table
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_memory (
             user_id TEXT PRIMARY KEY,

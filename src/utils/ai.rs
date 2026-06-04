@@ -3,9 +3,8 @@ use serde_json::json;
 use serenity::all::Message;
 use serenity::client::Context as SerenityContext;
 use std::env;
-use tracing::{error, info};
+use tracing::error;
 use crate::types::Data;
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GeminiResponse {
@@ -69,7 +68,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         return;
     }
 
-    let mut memory: UserMemory = sqlx::query_as("SELECT * FROM khivella_memory WHERE user_id = $1")
+    let memory: UserMemory = sqlx::query_as("SELECT * FROM khivella_memory WHERE user_id = $1")
         .bind(user_id.to_string())
         .fetch_optional(&data.db_pool)
         .await

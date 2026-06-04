@@ -55,7 +55,7 @@ pub async fn userinfo(
     
     let created_timestamp = user.id.created_at().unix_timestamp();
     
-    let mut embed = serenity::builder::CreateEmbed::new()
+    let embed = serenity::builder::CreateEmbed::new()
         .title(format!("Entity: {}", user.name))
         .color(0xef4444)
         .field("Global Name", user.global_name.as_deref().unwrap_or("None").to_string(), true)
@@ -63,7 +63,7 @@ pub async fn userinfo(
         .field("Automaton", if user.bot { "Yes" } else { "No" }.to_string(), true)
         .field("Creation Date", format!("<t:{}:F>", created_timestamp), false);
 
-    let mut embed = if let Some(avatar_url) = user.avatar_url() { embed.thumbnail(avatar_url) } else { embed };
+    let embed = if let Some(avatar_url) = user.avatar_url() { embed.thumbnail(avatar_url) } else { embed };
     let mut embed = if let Some(banner) = user.banner_url() { embed.image(banner) } else { embed };
 
     if let Some(m) = member {

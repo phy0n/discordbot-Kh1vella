@@ -1,7 +1,5 @@
 use serenity::client::Context as SerenityContext;
-use tracing::error;
 use crate::types::{Data, Error};
-use crate::utils::ai::ask_gemini;
 
 pub async fn event_handler(
     ctx: &SerenityContext,
