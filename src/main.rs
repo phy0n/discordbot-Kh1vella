@@ -94,8 +94,6 @@ async fn main() {
 
     let cache = client.cache.clone();
     let http = client.http.clone();
-    
-    // Start the API server in a separate task
     let api_task = tokio::spawn(async move {
         api::start_api_server(api_chatbot_state, cache, http, start_time, api_pool).await;
     });
@@ -104,7 +102,6 @@ async fn main() {
         error!("CRITICAL ERROR: Bot failed to connect to Discord! Error: {:?}", why);
         eprintln!("CRITICAL ERROR: Bot failed to connect to Discord! Error: {:?}", why);
         eprintln!("Keeping the process alive so the API server can still respond...");
-        // Keep the process alive so Railway doesn't loop-restart and 502
         let _ = api_task.await;
     }
 }
