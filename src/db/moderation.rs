@@ -68,7 +68,6 @@ impl ModerationRepo {
         if let Some(s) = settings {
             Ok(s)
         } else {
-            // Create default settings if not exist
             let default_settings = sqlx::query_as!(
                 ModSettings,
                 r#"
@@ -86,7 +85,6 @@ impl ModerationRepo {
     }
 
     pub async fn create_case(&self, case: &ModCase) -> Result<ModCase, sqlx::Error> {
-        // Ensure member exists in members table first for foreign key
         let _ = sqlx::query!(
             "INSERT INTO members (guild_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             case.guild_id, case.user_id

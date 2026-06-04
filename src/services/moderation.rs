@@ -16,7 +16,7 @@ impl ModerationService {
 
     pub async fn warn_user(&self, guild_id: &str, user_id: &str, mod_id: &str, reason: &str, evidence: Option<String>) -> Result<ModCase, sqlx::Error> {
         let case = ModCase {
-            id: Uuid::new_v4(), // Placeholder, DB overrides
+            id: Uuid::new_v4(), 
             guild_id: guild_id.to_string(),
             user_id: user_id.to_string(),
             moderator_id: mod_id.to_string(),
@@ -46,8 +46,7 @@ impl ModerationService {
         };
         
         let new_case = self.repo.create_case(&case).await?;
-        
-        // Count active strikes
+
         let cases = self.repo.get_user_cases(guild_id, user_id).await?;
         let active_strikes = cases.into_iter().filter(|c| c.r#type == CaseType::Strike && c.is_active).count() as i32;
 

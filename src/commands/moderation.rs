@@ -99,9 +99,6 @@ pub async fn purge(
     }
 
     let reply = ctx.send(poise::CreateReply::default().content(format!("✅ Deleted {} messages.", amount)).ephemeral(true)).await?;
-    
-    // In Poise, ephemeral messages dismiss themselves client-side, 
-    // or we can just send it normally and delete it later if prefix command.
     if ctx.prefix() != "/" {
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         let _ = reply.delete(ctx).await;
@@ -169,8 +166,6 @@ pub async fn strike(
     match mod_service.strike_user(&guild_id.to_string(), &user.id.to_string(), &ctx.author().id.to_string(), &reason, evidence).await {
         Ok((case, active_strikes)) => {
             let mut desc = format!("User {} has been given a strike.\nReason: {}\nActive Strikes: {}\nCase ID: {}", user.name, reason, active_strikes, case.id);
-            
-            // Fetch settings to check thresholds
             if let Ok(settings) = mod_service.get_settings(&guild_id.to_string()).await {
                 if active_strikes >= settings.strike_ban_threshold {
                     let _ = guild_id.ban_with_reason(ctx.http(), user.id, 0, &format!("Reached strike threshold ({} strikes)", active_strikes)).await;

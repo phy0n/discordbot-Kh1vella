@@ -84,8 +84,9 @@ async fn main() {
 
     let cache = client.cache.clone();
     let http = client.http.clone();
+    let api_pool = pool.clone();
     tokio::spawn(async move {
-        api::start_api_server(api_chatbot_state, cache, http, start_time).await;
+        api::start_api_server(api_chatbot_state, cache, http, start_time, api_pool).await;
     });
 
     if let Err(why) = client.start().await {

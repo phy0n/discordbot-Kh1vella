@@ -22,37 +22,19 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     let owner = guild.owner_id.to_user(ctx.http()).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
     let created_timestamp = guild_id.created_at().unix_timestamp();
     
-    let desc = format!(
-        "**General Information**\n\
-        **Name:** {}\n\
-        **ID:** {}\n\
-        **Owner:** {} (`{}`)\n\
-        **Created At:** <t:{}:F>\n\
-        \n\
-        **Statistics**\n\
-        **Members:** {}\n\
-        **Roles:** {}\n\
-        **Boost Tier:** {:?}\n\
-        **Boost Count:** {}",
-        guild.name,
-        guild.id,
-        owner, guild.owner_id,
-        created_timestamp,
-        guild.approximate_member_count.unwrap_or(0),
-        guild.roles.len(),
-        guild.premium_tier,
-        guild.premium_subscription_count.unwrap_or(0)
-    );
+    let embed = serenity::builder::CreateEmbed::new()
+        .title(format!("Server Profile: {}", guild.name))
+        .description("Here is the detailed network telemetry for this node.")
+        .color(0xef4444)
+        .field("Owner", format!("{} (`{}`)", owner, guild.owner_id), true)
+        .field("Created", format!("<t:{}:F>", created_timestamp), true)
+        .field("Members", format!("{} entities", guild.approximate_member_count.unwrap_or(0)), true)
+        .field("Roles", format!("{}", guild.roles.len()), true)
+        .field("Boosts", format!("Level {:?} ({} boosts)", guild.premium_tier, guild.premium_subscription_count.unwrap_or(0)), true)
+        .footer(serenity::builder::CreateEmbedFooter::new(format!("Node ID: {}", guild.id)));
 
-    let mut embed = create_embed("Server Information", &desc, 0x2b2d31);
-    
-    if let Some(icon) = guild.icon_url() {
-        embed = embed.thumbnail(icon);
-    }
-    
-    if let Some(banner) = guild.banner_url() {
-        embed = embed.image(banner);
-    }
+    let embed = if let Some(icon) = guild.icon_url() { embed.thumbnail(icon) } else { embed };
+    let embed = if let Some(banner) = guild.banner_url() { embed.image(banner) } else { embed };
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -73,41 +55,31 @@ pub async fn userinfo(
     
     let created_timestamp = user.id.created_at().unix_timestamp();
     
-    let mut desc = format!(
-        "**User Information**\n\
-        **Username:** {}\n\
-        **Global Name:** {}\n\
-        **ID:** {}\n\
-        **Bot:** {}\n\
-        **Created At:** <t:{}:F>\n",
-        user.name,
-        user.global_name.as_deref().unwrap_or("None"),
-        user.id,
-        if user.bot { "Yes" } else { "No" },
-        created_timestamp
-    );
+    let mut embed = serenity::builder::CreateEmbed::new()
+        .title(format!("Entity: {}", user.name))
+        .color(0xef4444)
+        .field("Global Name", user.global_name.as_deref().unwrap_or("None").to_string(), true)
+        .field("Identifier", user.id.to_string(), true)
+        .field("Automaton", if user.bot { "Yes" } else { "No" }.to_string(), true)
+        .field("Creation Date", format!("<t:{}:F>", created_timestamp), false);
+
+    let mut embed = if let Some(avatar_url) = user.avatar_url() { embed.thumbnail(avatar_url) } else { embed };
+    let mut embed = if let Some(banner) = user.banner_url() { embed.image(banner) } else { embed };
 
     if let Some(m) = member {
         if let Some(joined) = m.joined_at {
-            let joined_ts = joined.unix_timestamp();
-            desc.push_str(&format!("\n**Server Profile**\n**Joined At:** <t:{}:F>\n", joined_ts));
+            embed = embed.field("📥 Network Join Date", format!("<t:{}:F>", joined.unix_timestamp()), false);
         }
         
         let roles = m.roles;
         if !roles.is_empty() {
             let roles_str: Vec<String> = roles.iter().map(|r| format!("<@&{}>", r)).collect();
-            desc.push_str(&format!("\n**Roles ({})**\n{}", roles.len(), roles_str.join(", ")));
+            let mut joined = roles_str.join(", ");
+            if joined.len() > 1000 {
+                joined = format!("{}... and more", &joined[0..980]);
+            }
+            embed = embed.field(format!("🎭 Assigned Roles ({})", roles.len()), joined, false);
         }
-    }
-
-    let mut embed = create_embed("User Profile", &desc, 0x2b2d31);
-    
-    if let Some(avatar_url) = user.avatar_url() {
-        embed = embed.thumbnail(avatar_url);
-    }
-    
-    if let Some(banner) = user.banner_url() {
-        embed = embed.image(banner);
     }
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
@@ -131,38 +103,16 @@ pub async fn avatar(
 
 #[poise::command(slash_command, prefix_command, category = "Utility", track_edits)]
 pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
-    let desc = "\
-    **Music Commands**\n\
-    `/join` - Joins the voice channel.\n\
-    `/leave` - Leaves the voice channel.\n\
-    `/play <query>` - Plays a song.\n\
-    `/pause` - Pauses playback.\n\
-    `/resume` - Resumes playback.\n\
-    `/skip` - Skips the track.\n\
-    `/stop` - Stops playback.\n\
-    `/queue` - Shows queue length.\n\
-    \n\
-    **Moderation Commands**\n\
-    `/kick <@user>` - Kicks a user.\n\
-    `/ban <@user>` - Bans a user.\n\
-    `/unban <User ID>` - Unbans a user.\n\
-    `/purge <amount>` - Deletes messages.\n\
-    `/timeout <@user> <minutes>` - Times out a user.\n\
-    \n\
-    **Admin Commands**\n\
-    `/lock` - Locks the channel.\n\
-    `/unlock` - Unlocks the channel.\n\
-    `/slowmode <seconds>` - Sets slowmode.\n\
-    `/chatbot <enable/disable>` - Toggles the AI.\n\
-    \n\
-    **Utility Commands**\n\
-    `/help` - Displays this help message.\n\
-    `/ping` - Checks bot latency.\n\
-    `/serverinfo` - Server information.\n\
-    `/userinfo [@user]` - User information.\n\
-    `/avatar [@user]` - User avatar.\n\
-    ";
+    let embed = serenity::builder::CreateEmbed::new()
+        .title("Kh1vella Command Reference")
+        .description("Below is the complete manual for all executable directives in this node.")
+        .color(0xef4444)
+        .field("Audio Subsystem", "`/join` • `/leave`\n`/play` • `/pause` • `/resume`\n`/skip` • `/stop` • `/queue`", true)
+        .field("Enforcement", "`/warn` • `/strike`\n`/kick` • `/ban` • `/unban`\n`/timeout` • `/purge`", true)
+        .field("Operations", "`/lock` • `/unlock`\n`/slowmode`\n`/chatbot`", true)
+        .field("Telemetry", "`/ping` • `/serverinfo`\n`/userinfo` • `/avatar`", true)
+        .footer(serenity::builder::CreateEmbedFooter::new("Kh1ev Community Operating System"));
 
-    send_embed(ctx, "Help - Command List", desc, 0x2b2d31).await?;
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
