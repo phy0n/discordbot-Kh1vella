@@ -5,12 +5,15 @@ mod utils;
 mod handler;
 mod types;
 mod api;
+pub mod db;
+pub mod services;
 
 use std::env;
 use dotenvy::dotenv;
 use serenity::prelude::GatewayIntents;
 use songbird::SerenityInit;
-use tracing::error;
+use tracing::{error, info};
+use sqlx::postgres::PgPoolOptions;
 
 use crate::types::Data;
 use crate::commands::{
@@ -27,6 +30,14 @@ async fn main() {
     dotenv().ok();
 
     let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN in environment");
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| env::var("SUPABASE_DATABASE_URL").expect("Expected DATABASE_URL"));
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await
+        .expect("Failed to connect to database");
+    info!("Connected to Supabase PostgreSQL");
 
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
@@ -40,7 +51,7 @@ async fn main() {
         .options(poise::FrameworkOptions {
             commands: vec![
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(),
-                kick(), ban(), unban(), purge(), timeout(),
+                kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
                 lock(), unlock(), slowmode(), chatbot(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
             ],
@@ -59,6 +70,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     chatbot_enabled: chatbot_state,
+                    db_pool: pool,
                 })
             })
         })

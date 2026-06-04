@@ -17,3 +17,6 @@ poise = "0.6"
 axum = "0.7"
 tower-http = { version = "0.5", features = ["cors"] }
 sysinfo = "0.39.3"
+uuid = { version = "1.23.2", features = ["v4", "serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "macros"] }
