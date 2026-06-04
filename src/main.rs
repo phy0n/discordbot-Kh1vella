@@ -32,11 +32,18 @@ async fn main() {
     let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN in environment");
     let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| env::var("SUPABASE_DATABASE_URL").expect("Expected DATABASE_URL"));
 
-    let pool = PgPoolOptions::new()
+    let pool = match PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await
-        .expect("Failed to connect to database");
+    {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("CRITICAL ERROR: Failed to connect to database! URL: {}", database_url);
+            eprintln!("Error details: {:?}", e);
+            std::process::exit(1);
+        }
+    };
     info!("Connected to Supabase PostgreSQL");
 
     let intents = GatewayIntents::non_privileged() 
@@ -87,11 +94,17 @@ async fn main() {
 
     let cache = client.cache.clone();
     let http = client.http.clone();
-    tokio::spawn(async move {
+    
+    // Start the API server in a separate task
+    let api_task = tokio::spawn(async move {
         api::start_api_server(api_chatbot_state, cache, http, start_time, api_pool).await;
     });
 
     if let Err(why) = client.start().await {
-        error!("Client error: {:?}", why);
+        error!("CRITICAL ERROR: Bot failed to connect to Discord! Error: {:?}", why);
+        eprintln!("CRITICAL ERROR: Bot failed to connect to Discord! Error: {:?}", why);
+        eprintln!("Keeping the process alive so the API server can still respond...");
+        // Keep the process alive so Railway doesn't loop-restart and 502
+        let _ = api_task.await;
     }
 }
