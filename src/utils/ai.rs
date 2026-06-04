@@ -127,14 +127,17 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         memory.about_user.as_deref().unwrap_or("Belum diketahui")
     );
 
+    let channel_id = msg.channel_id.get();
+
     let mut current_history = {
         let hist_lock = data.chat_history.read().await;
-        hist_lock.get(&user_id).cloned().unwrap_or_default()
+        hist_lock.get(&channel_id).cloned().unwrap_or_default()
     };
 
+    let formatted_prompt = format!("[{}] berkata: {}", username, prompt);
     current_history.push(json!({
         "role": "user",
-        "parts": [{"text": prompt}]
+        "parts": [{"text": formatted_prompt}]
     }));
 
     let api_key = env::var("GEMINI_API_KEY").unwrap_or_default();
@@ -171,7 +174,7 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
                             }
                             
                             let mut hist_lock = data.chat_history.write().await;
-                            hist_lock.insert(user_id, current_history);
+                            hist_lock.insert(channel_id, current_history);
 
                             let new_score = std::cmp::min(memory.relationship_score + 1, 100);
                             let fav_game = gemini_data.memory_updates.as_ref().and_then(|m| m.favorite_game.clone()).or(memory.favorite_game);
