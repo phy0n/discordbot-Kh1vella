@@ -3,7 +3,8 @@ use std::env;
 
 pub async fn ask_gemini(prompt: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let api_key = env::var("GEMINI_API_KEY")?;
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={}", api_key);
+    let model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-1.5-flash".to_string()); // Default to 1.5-flash if not set
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, api_key);
     
     let client = reqwest::Client::new();
     let system_prompt = r#"
