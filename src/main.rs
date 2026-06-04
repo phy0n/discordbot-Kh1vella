@@ -47,6 +47,9 @@ async fn main() {
     let chatbot_state = std::sync::Arc::new(tokio::sync::RwLock::new(true));
     let api_chatbot_state = chatbot_state.clone();
 
+    let framework_pool = pool.clone();
+    let api_pool = pool.clone();
+
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
@@ -70,7 +73,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     chatbot_enabled: chatbot_state,
-                    db_pool: pool,
+                    db_pool: framework_pool,
                 })
             })
         })
@@ -84,7 +87,6 @@ async fn main() {
 
     let cache = client.cache.clone();
     let http = client.http.clone();
-    let api_pool = pool.clone();
     tokio::spawn(async move {
         api::start_api_server(api_chatbot_state, cache, http, start_time, api_pool).await;
     });

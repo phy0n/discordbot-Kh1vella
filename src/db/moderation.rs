@@ -51,8 +51,7 @@ impl ModerationRepo {
     }
 
     pub async fn get_settings(&self, guild_id: &str) -> Result<ModSettings, sqlx::Error> {
-        let settings = sqlx::query_as!(
-            ModSettings,
+        let settings = sqlx::query_as::<_, ModSettings>(
             r#"
             SELECT guild_id, auto_mod_enabled, anti_spam_enabled, anti_link_enabled, 
                    anti_raid_enabled, anti_nuke_enabled, strike_ban_threshold, 
@@ -60,24 +59,23 @@ impl ModerationRepo {
             FROM mod_settings 
             WHERE guild_id = $1
             "#,
-            guild_id
         )
+        .bind(guild_id)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(s) = settings {
             Ok(s)
         } else {
-            let default_settings = sqlx::query_as!(
-                ModSettings,
+            let default_settings = sqlx::query_as::<_, ModSettings>(
                 r#"
                 INSERT INTO mod_settings (guild_id) VALUES ($1)
                 RETURNING guild_id, auto_mod_enabled, anti_spam_enabled, anti_link_enabled, 
                           anti_raid_enabled, anti_nuke_enabled, strike_ban_threshold, 
                           strike_kick_threshold, log_channel_id
                 "#,
-                guild_id
             )
+            .bind(guild_id)
             .fetch_one(&self.pool)
             .await?;
             Ok(default_settings)
@@ -85,44 +83,43 @@ impl ModerationRepo {
     }
 
     pub async fn create_case(&self, case: &ModCase) -> Result<ModCase, sqlx::Error> {
-        let _ = sqlx::query!(
+        let _ = sqlx::query(
             "INSERT INTO members (guild_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-            case.guild_id, case.user_id
         )
+        .bind(&case.guild_id)
+        .bind(&case.user_id)
         .execute(&self.pool)
         .await?;
 
-        sqlx::query_as!(
-            ModCase,
+        sqlx::query_as::<_, ModCase>(
             r#"
             INSERT INTO mod_cases (guild_id, user_id, moderator_id, type, reason, evidence_url, expires_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, guild_id, user_id, moderator_id, type as "type: _", reason, evidence_url, is_active, expires_at, created_at
+            RETURNING id, guild_id, user_id, moderator_id, type, reason, evidence_url, is_active, expires_at, created_at
             "#,
-            case.guild_id,
-            case.user_id,
-            case.moderator_id,
-            case.r#type as CaseType,
-            case.reason,
-            case.evidence_url,
-            case.expires_at
         )
+        .bind(&case.guild_id)
+        .bind(&case.user_id)
+        .bind(&case.moderator_id)
+        .bind(&case.r#type)
+        .bind(&case.reason)
+        .bind(&case.evidence_url)
+        .bind(case.expires_at)
         .fetch_one(&self.pool)
         .await
     }
 
     pub async fn get_user_cases(&self, guild_id: &str, user_id: &str) -> Result<Vec<ModCase>, sqlx::Error> {
-        sqlx::query_as!(
-            ModCase,
+        sqlx::query_as::<_, ModCase>(
             r#"
-            SELECT id, guild_id, user_id, moderator_id, type as "type: _", reason, evidence_url, is_active, expires_at, created_at
+            SELECT id, guild_id, user_id, moderator_id, type, reason, evidence_url, is_active, expires_at, created_at
             FROM mod_cases
             WHERE guild_id = $1 AND user_id = $2
             ORDER BY created_at DESC
             "#,
-            guild_id,
-            user_id
         )
+        .bind(guild_id)
+        .bind(user_id)
         .fetch_all(&self.pool)
         .await
     }
