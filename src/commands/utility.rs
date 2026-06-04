@@ -22,16 +22,40 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     let owner = guild.owner_id.to_user(ctx.http()).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
     let created_timestamp = guild_id.created_at().unix_timestamp();
     
+    let channels = ctx.http().get_channels(guild_id).await.unwrap_or_default();
+    let text_channels = channels.iter().filter(|c| c.kind == serenity::all::ChannelType::Text).count();
+    let voice_channels = channels.iter().filter(|c| c.kind == serenity::all::ChannelType::Voice).count();
+    
+    let total_emojis = guild.emojis.len();
+    let animated_emojis = guild.emojis.values().filter(|e| e.animated).count();
+    let static_emojis = total_emojis - animated_emojis;
+    
+    let member_count = guild.approximate_member_count.unwrap_or(0);
+    let online_count = guild.approximate_presence_count.unwrap_or(0);
+    
+    let tier_str = match guild.premium_tier {
+        serenity::all::PremiumTier::Tier1 => "Level 1",
+        serenity::all::PremiumTier::Tier2 => "Level 2",
+        serenity::all::PremiumTier::Tier3 => "Level 3",
+        _ => "None",
+    };
+
+    let mut description = String::from("Server Information Overview");
+    if let Some(desc) = &guild.description {
+        description = format!("{}\n\n**Description**\n{}", description, desc);
+    }
+
     let embed = serenity::builder::CreateEmbed::new()
         .title(format!("Server Profile: {}", guild.name))
-        .description("Here is the detailed network telemetry for this node.")
+        .description(description)
         .color(0xef4444)
-        .field("Owner", format!("{} (`{}`)", owner, guild.owner_id), true)
-        .field("Created", format!("<t:{}:F>", created_timestamp), true)
-        .field("Members", format!("{} entities", guild.approximate_member_count.unwrap_or(0)), true)
-        .field("Roles", format!("{}", guild.roles.len()), true)
-        .field("Boosts", format!("Level {:?} ({} boosts)", guild.premium_tier, guild.premium_subscription_count.unwrap_or(0)), true)
-        .footer(serenity::builder::CreateEmbedFooter::new(format!("Node ID: {}", guild.id)));
+        .field("General", format!("Owner: {}\nCreated: <t:{}:d>\nServer ID: `{}`", owner, created_timestamp, guild.id), false)
+        .field("Statistics", format!("Members: {} ({} Online)\nRoles: {}\nEmojis: {} ({} Static, {} Animated)", 
+            member_count, online_count, guild.roles.len(), total_emojis, static_emojis, animated_emojis), true)
+        .field("Channels", format!("Total: {}\nText: {}\nVoice: {}", 
+            channels.len(), text_channels, voice_channels), true)
+        .field("Boost Status", format!("Tier: {}\nTotal Boosts: {}", 
+            tier_str, guild.premium_subscription_count.unwrap_or(0)), true);
 
     let embed = if let Some(icon) = guild.icon_url() { embed.thumbnail(icon) } else { embed };
     let embed = if let Some(banner) = guild.banner_url() { embed.image(banner) } else { embed };
@@ -60,7 +84,6 @@ pub async fn userinfo(
         .color(0xef4444)
         .field("Global Name", user.global_name.as_deref().unwrap_or("None").to_string(), true)
         .field("Identifier", user.id.to_string(), true)
-        .field("Automaton", if user.bot { "Yes" } else { "No" }.to_string(), true)
         .field("Creation Date", format!("<t:{}:F>", created_timestamp), false);
 
     let embed = if let Some(avatar_url) = user.avatar_url() { embed.thumbnail(avatar_url) } else { embed };
@@ -68,7 +91,7 @@ pub async fn userinfo(
 
     if let Some(m) = member {
         if let Some(joined) = m.joined_at {
-            embed = embed.field("📥 Network Join Date", format!("<t:{}:F>", joined.unix_timestamp()), false);
+            embed = embed.field("Network Join Date", format!("<t:{}:F>", joined.unix_timestamp()), false);
         }
         
         let roles = m.roles;
@@ -78,7 +101,7 @@ pub async fn userinfo(
             if joined.len() > 1000 {
                 joined = format!("{}... and more", &joined[0..980]);
             }
-            embed = embed.field(format!("🎭 Assigned Roles ({})", roles.len()), joined, false);
+            embed = embed.field(format!("Assigned Roles ({})", roles.len()), joined, false);
         }
     }
 
@@ -105,7 +128,7 @@ pub async fn avatar(
 pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let embed = serenity::builder::CreateEmbed::new()
         .title("Kh1vella Command Reference")
-        .description("Below is the complete manual for all executable directives in this node.")
+        .description("Below is the complete manual for all executable directives in this bot.")
         .color(0xef4444)
         .field("Audio Subsystem", "`/join` • `/leave`\n`/play` • `/pause` • `/resume`\n`/skip` • `/stop` • `/queue`", true)
         .field("Enforcement", "`/warn` • `/strike`\n`/kick` • `/ban` • `/unban`\n`/timeout` • `/purge`", true)
