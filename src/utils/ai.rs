@@ -76,9 +76,9 @@ pub async fn handle_chat(ctx: &SerenityContext, msg: &Message, data: &Data, prom
         .unwrap_or_default();
 
     let relationship_context = if user_id == 494169184175915019 {
-        "USER INI ADALAH PHION! Dia adalah cowok sahabat masa kecilmu dan kamu diam-diam naksir/suka sama dia. Bicaralah dengannya dengan sangat akrab, agak tsundere, gengsi, kadang salting (salah tingkah), tapi sebenarnya kamu sangat peduli dan nyaman ngobrol berdua sama dia. Ingat, kamu gengsi buat ngaku kalau kamu suka dia."
+        "USER INI ADALAH PHION! Sahabat cowok masa kecilmu dan kamu diam-diam naksir dia. Bicaralah dengannya dengan sangat akrab, baik, santai, dan peduli. Kadang agak gengsi kalau ditanya soal perasaan, tapi overall kamu sangat nyaman dan manis padanya."
     } else if memory.relationship_score < 20 {
-        "User ini orang asing / baru kenal. Bicaralah sedikit lebih kaku atau jutek."
+        "User ini baru kenal. Bicaralah dengan ramah, santai, namun tidak terlalu sok asik."
     } else if memory.relationship_score < 40 {
         "User ini sekadar kenalan (acquaintance). Lumayan biasa saja."
     } else if memory.relationship_score < 60 {
