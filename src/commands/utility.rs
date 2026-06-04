@@ -1,30 +1,25 @@
-use serenity::{
-    client::Context,
-    framework::standard::{macros::command, Args, CommandResult},
-    model::channel::Message,
-    builder::CreateMessage,
-};
+use crate::types::{Context, Error};
 use crate::utils::embeds::{create_embed, send_embed};
+use serenity::model::user::User;
 
-#[command]
-pub async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    send_embed(ctx, msg, "Pong", "System is online and responsive.", 0x2b2d31).await?;
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
+    send_embed(ctx, "Pong", "System is online and responsive.", 0x2b2d31).await?;
     Ok(())
 }
 
-#[command]
-#[only_in(guilds)]
-pub async fn serverinfo(ctx: &Context, msg: &Message) -> CommandResult {
-    let guild_id = msg.guild_id.unwrap();
-    let guild = match ctx.http.get_guild_with_counts(guild_id).await {
+#[poise::command(slash_command, prefix_command, guild_only, category = "Utility")]
+pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let guild = match ctx.http().get_guild_with_counts(guild_id).await {
         Ok(g) => g,
         Err(_) => {
-            send_embed(ctx, msg, "Error", "Could not fetch server information.", 0xED4245).await?;
+            send_embed(ctx, "Error", "Could not fetch server information.", 0xED4245).await?;
             return Ok(());
         }
     };
 
-    let owner = guild.owner_id.to_user(&ctx.http).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
+    let owner = guild.owner_id.to_user(ctx.http()).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
     let created_timestamp = guild_id.created_at().unix_timestamp();
     
     let desc = format!(
@@ -59,31 +54,23 @@ pub async fn serverinfo(ctx: &Context, msg: &Message) -> CommandResult {
         embed = embed.image(banner);
     }
 
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
-
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
-#[command]
-pub async fn userinfo(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let user = if msg.mentions.is_empty() {
-        if let Ok(id) = args.single::<u64>() {
-            match ctx.http.get_user(serenity::model::id::UserId::new(id)).await {
-                Ok(u) => u,
-                Err(_) => {
-                    send_embed(ctx, msg, "Error", "User not found.", 0xED4245).await?;
-                    return Ok(());
-                }
-            }
-        } else {
-            msg.author.clone()
-        }
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn userinfo(
+    ctx: Context<'_>, 
+    #[description = "User to inspect"] user: Option<User>
+) -> Result<(), Error> {
+    let user = user.unwrap_or_else(|| ctx.author().clone());
+    
+    let member = if let Some(guild_id) = ctx.guild_id() {
+        guild_id.member(ctx.http(), user.id).await.ok()
     } else {
-        msg.mentions[0].clone()
+        None
     };
-
-    let member = msg.guild_id.unwrap().member(&ctx.http, user.id).await.ok();
+    
     let created_timestamp = user.id.created_at().unix_timestamp();
     
     let mut desc = format!(
@@ -123,73 +110,59 @@ pub async fn userinfo(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
         embed = embed.image(banner);
     }
 
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
-
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
-#[command]
-pub async fn avatar(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let user = if msg.mentions.is_empty() {
-        if let Ok(id) = args.single::<u64>() {
-            match ctx.http.get_user(serenity::model::id::UserId::new(id)).await {
-                Ok(u) => u,
-                Err(_) => {
-                    send_embed(ctx, msg, "Error", "User not found.", 0xED4245).await?;
-                    return Ok(());
-                }
-            }
-        } else {
-            msg.author.clone()
-        }
-    } else {
-        msg.mentions[0].clone()
-    };
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn avatar(
+    ctx: Context<'_>, 
+    #[description = "User to inspect"] user: Option<User>
+) -> Result<(), Error> {
+    let user = user.unwrap_or_else(|| ctx.author().clone());
 
     let url = user.face(); 
     let mut embed = create_embed(&format!("Avatar: {}", user.name), "", 0x2b2d31);
     embed = embed.image(url);
     
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
-    
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
-#[command]
-pub async fn help(ctx: &Context, msg: &Message) -> CommandResult {
+#[poise::command(slash_command, prefix_command, category = "Utility", track_edits)]
+pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     let desc = "\
     **Music Commands**\n\
-    `kh!join` - Joins the voice channel.\n\
-    `kh!leave` - Leaves the voice channel.\n\
-    `kh!play <url/query>` - Plays a song.\n\
-    `kh!pause` - Pauses playback.\n\
-    `kh!resume` - Resumes playback.\n\
-    `kh!skip` - Skips the track.\n\
-    `kh!stop` - Stops playback.\n\
-    `kh!queue` - Shows queue length.\n\
+    `/join` - Joins the voice channel.\n\
+    `/leave` - Leaves the voice channel.\n\
+    `/play <query>` - Plays a song.\n\
+    `/pause` - Pauses playback.\n\
+    `/resume` - Resumes playback.\n\
+    `/skip` - Skips the track.\n\
+    `/stop` - Stops playback.\n\
+    `/queue` - Shows queue length.\n\
     \n\
     **Moderation Commands**\n\
-    `kh!kick <@user>` - Kicks a user.\n\
-    `kh!ban <@user>` - Bans a user.\n\
-    `kh!unban <User ID>` - Unbans a user.\n\
-    `kh!purge <amount>` - Deletes messages.\n\
-    `kh!timeout <@user> <minutes>` - Times out a user.\n\
+    `/kick <@user>` - Kicks a user.\n\
+    `/ban <@user>` - Bans a user.\n\
+    `/unban <User ID>` - Unbans a user.\n\
+    `/purge <amount>` - Deletes messages.\n\
+    `/timeout <@user> <minutes>` - Times out a user.\n\
     \n\
     **Admin Commands**\n\
-    `kh!lock` - Locks the channel.\n\
-    `kh!unlock` - Unlocks the channel.\n\
-    `kh!slowmode <seconds>` - Sets slowmode.\n\
+    `/lock` - Locks the channel.\n\
+    `/unlock` - Unlocks the channel.\n\
+    `/slowmode <seconds>` - Sets slowmode.\n\
+    `/chatbot <enable/disable>` - Toggles the AI.\n\
     \n\
     **Utility Commands**\n\
-    `kh!help` - Displays this help message.\n\
-    `kh!ping` - Checks bot latency.\n\
-    `kh!serverinfo` - Server information.\n\
-    `kh!userinfo [@user]` - User information.\n\
-    `kh!avatar [@user]` - User avatar.\n\
+    `/help` - Displays this help message.\n\
+    `/ping` - Checks bot latency.\n\
+    `/serverinfo` - Server information.\n\
+    `/userinfo [@user]` - User information.\n\
+    `/avatar [@user]` - User avatar.\n\
     ";
 
-    send_embed(ctx, msg, "Help - Command List", desc, 0x2b2d31).await?;
+    send_embed(ctx, "Help - Command List", desc, 0x2b2d31).await?;
     Ok(())
 }

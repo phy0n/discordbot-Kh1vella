@@ -1,9 +1,5 @@
-use serenity::{
-    builder::{CreateEmbed, CreateMessage}, 
-    client::Context, 
-    model::channel::Message, 
-    framework::standard::CommandResult
-};
+use crate::types::{Context, Error};
+use serenity::builder::CreateEmbed;
 
 pub fn create_embed(title: &str, description: &str, color: u32) -> CreateEmbed {
     CreateEmbed::new()
@@ -12,9 +8,8 @@ pub fn create_embed(title: &str, description: &str, color: u32) -> CreateEmbed {
         .color(color)
 }
 
-pub async fn send_embed(ctx: &Context, msg: &Message, title: &str, description: &str, color: u32) -> CommandResult {
+pub async fn send_embed(ctx: Context<'_>, title: &str, description: &str, color: u32) -> Result<(), Error> {
     let embed = create_embed(title, description, color);
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }

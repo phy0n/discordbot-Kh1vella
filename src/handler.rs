@@ -1,42 +1,20 @@
-use serenity::{
-    async_trait,
-    client::{Context, EventHandler},
-    model::{gateway::Ready, channel::Message},
-};
-use tracing::{info, error};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use serenity::prelude::TypeMapKey;
-
+use serenity::client::Context as SerenityContext;
+use tracing::error;
+use crate::types::{Data, Error};
 use crate::utils::ai::ask_gemini;
 
-pub struct ChatbotState;
-
-impl TypeMapKey for ChatbotState {
-    type Value = Arc<RwLock<bool>>;
-}
-
-pub struct Handler;
-
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        info!("System initialized and connected as {}", ready.user.name);
-    }
-
-    async fn message(&self, ctx: Context, msg: Message) {
+pub async fn event_handler(
+    ctx: &SerenityContext,
+    event: &serenity::all::FullEvent,
+    _framework: poise::FrameworkContext<'_, Data, Error>,
+    data: &Data,
+) -> Result<(), Error> {
+    if let serenity::all::FullEvent::Message { new_message: msg } = event {
         if msg.author.bot {
-            return;
+            return Ok(());
         }
 
-        let is_enabled = {
-            let data = ctx.data.read().await;
-            if let Some(state) = data.get::<ChatbotState>() {
-                *state.read().await
-            } else {
-                false
-            }
-        };
+        let is_enabled = *data.chatbot_enabled.read().await;
 
         if is_enabled {
             let bot_id = ctx.cache.current_user().id;
@@ -72,4 +50,6 @@ impl EventHandler for Handler {
             }
         }
     }
+    
+    Ok(())
 }

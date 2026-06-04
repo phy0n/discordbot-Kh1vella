@@ -1,22 +1,17 @@
-use serenity::{
-    client::Context,
-    framework::standard::{macros::command, Args, CommandResult},
-    model::{
-        channel::{Message, PermissionOverwriteType, PermissionOverwrite},
-        permissions::Permissions,
-    },
-    builder::EditChannel,
-};
+use crate::types::{Context, Error};
 use crate::utils::embeds::send_embed;
-use crate::handler::ChatbotState;
+use serenity::model::{
+    channel::{PermissionOverwriteType, PermissionOverwrite},
+    permissions::Permissions,
+};
+use serenity::builder::EditChannel;
 
-#[command]
-#[only_in(guilds)]
-#[required_permissions("MANAGE_CHANNELS")]
-pub async fn lock(ctx: &Context, msg: &Message) -> CommandResult {
-    let everyone_role_id = serenity::model::id::RoleId::new(msg.guild_id.unwrap().get());
+#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+pub async fn lock(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let everyone_role_id = serenity::model::id::RoleId::new(guild_id.get());
     
-    let channel = match msg.channel_id.to_channel(&ctx.http).await {
+    let channel = match ctx.channel_id().to_channel(ctx.http()).await {
         Ok(c) => c.guild(),
         Err(_) => None,
     };
@@ -29,64 +24,56 @@ pub async fn lock(ctx: &Context, msg: &Message) -> CommandResult {
         };
         
         let builder = EditChannel::new().permissions(vec![overwrite]);
-        if let Err(e) = c.edit(&ctx.http, builder).await {
-            send_embed(ctx, msg, "Error", &format!("Failed to lock channel: {}", e), 0xED4245).await?;
+        if let Err(e) = c.edit(ctx.http(), builder).await {
+            send_embed(ctx, "Error", &format!("Failed to lock channel: {}", e), 0xED4245).await?;
             return Ok(());
         }
     }
 
-    send_embed(ctx, msg, "Admin: Lock", "This channel has been locked.", 0x2b2d31).await?;
+    send_embed(ctx, "Admin: Lock", "This channel has been locked.", 0x2b2d31).await?;
     Ok(())
 }
 
-#[command]
-#[only_in(guilds)]
-#[required_permissions("MANAGE_CHANNELS")]
-pub async fn unlock(ctx: &Context, msg: &Message) -> CommandResult {
-    let everyone_role_id = serenity::model::id::RoleId::new(msg.guild_id.unwrap().get());
+#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+pub async fn unlock(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap();
+    let everyone_role_id = serenity::model::id::RoleId::new(guild_id.get());
     
-    let channel = match msg.channel_id.to_channel(&ctx.http).await {
+    let channel = match ctx.channel_id().to_channel(ctx.http()).await {
         Ok(c) => c.guild(),
         Err(_) => None,
     };
     
     if let Some(c) = channel {
-        if let Err(e) = c.delete_permission(&ctx.http, PermissionOverwriteType::Role(everyone_role_id)).await {
-            send_embed(ctx, msg, "Error", &format!("Failed to unlock channel: {}", e), 0xED4245).await?;
+        if let Err(e) = c.delete_permission(ctx.http(), PermissionOverwriteType::Role(everyone_role_id)).await {
+            send_embed(ctx, "Error", &format!("Failed to unlock channel: {}", e), 0xED4245).await?;
             return Ok(());
         }
     }
 
-    send_embed(ctx, msg, "Admin: Unlock", "This channel has been unlocked.", 0x2b2d31).await?;
+    send_embed(ctx, "Admin: Unlock", "This channel has been unlocked.", 0x2b2d31).await?;
     Ok(())
 }
 
-#[command]
-#[only_in(guilds)]
-#[required_permissions("MANAGE_CHANNELS")]
-pub async fn slowmode(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let seconds: u16 = match args.single() {
-        Ok(sec) => sec,
-        Err(_) => {
-            send_embed(ctx, msg, "Error", "Please provide the slowmode duration in seconds (0 to disable).", 0xED4245).await?;
-            return Ok(());
-        }
-    };
-    
+#[poise::command(slash_command, prefix_command, required_permissions = "MANAGE_CHANNELS", category = "Admin")]
+pub async fn slowmode(
+    ctx: Context<'_>, 
+    #[description = "Duration in seconds (0 to disable)"] seconds: u16
+) -> Result<(), Error> {
     if seconds > 21600 {
-        send_embed(ctx, msg, "Error", "Slowmode cannot exceed 21600 seconds (6 hours).", 0xED4245).await?;
+        send_embed(ctx, "Error", "Slowmode cannot exceed 21600 seconds (6 hours).", 0xED4245).await?;
         return Ok(());
     }
 
-    let channel = match msg.channel_id.to_channel(&ctx.http).await {
+    let channel = match ctx.channel_id().to_channel(ctx.http()).await {
         Ok(c) => c.guild(),
         Err(_) => None,
     };
     
     if let Some(mut c) = channel {
         let builder = EditChannel::new().rate_limit_per_user(seconds);
-        if let Err(e) = c.edit(&ctx.http, builder).await {
-            send_embed(ctx, msg, "Error", &format!("Failed to set slowmode: {}", e), 0xED4245).await?;
+        if let Err(e) = c.edit(ctx.http(), builder).await {
+            send_embed(ctx, "Error", &format!("Failed to set slowmode: {}", e), 0xED4245).await?;
             return Ok(());
         }
     }
@@ -97,29 +84,25 @@ pub async fn slowmode(ctx: &Context, msg: &Message, mut args: Args) -> CommandRe
         format!("Slowmode set to {} seconds.", seconds)
     };
 
-    send_embed(ctx, msg, "Admin: Slowmode", &status_text, 0x2b2d31).await?;
+    send_embed(ctx, "Admin: Slowmode", &status_text, 0x2b2d31).await?;
     Ok(())
 }
 
-#[command]
-#[only_in(guilds)]
-pub async fn chatbot(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let action = args.single::<String>().unwrap_or_default().to_lowercase();
+#[poise::command(slash_command, prefix_command, owners_only, category = "Admin")]
+pub async fn chatbot(
+    ctx: Context<'_>, 
+    #[description = "Action: 'enable' or 'disable'"] action: String
+) -> Result<(), Error> {
+    let action = action.to_lowercase();
     
     if action == "enable" || action == "on" {
-        let mut data = ctx.data.write().await;
-        if let Some(state) = data.get_mut::<ChatbotState>() {
-            *state.write().await = true;
-        }
-        send_embed(ctx, msg, "Chatbot AI", "Chatbot AI has been **ENABLED**.\nThe bot will now reply to tags and replies.", 0x2b2d31).await?;
+        *ctx.data().chatbot_enabled.write().await = true;
+        send_embed(ctx, "Chatbot AI", "Chatbot AI has been **ENABLED**.\nThe bot will now reply to tags and replies.", 0x2b2d31).await?;
     } else if action == "disable" || action == "off" {
-        let mut data = ctx.data.write().await;
-        if let Some(state) = data.get_mut::<ChatbotState>() {
-            *state.write().await = false;
-        }
-        send_embed(ctx, msg, "Chatbot AI", "Chatbot AI has been **DISABLED**.", 0x2b2d31).await?;
+        *ctx.data().chatbot_enabled.write().await = false;
+        send_embed(ctx, "Chatbot AI", "Chatbot AI has been **DISABLED**.", 0x2b2d31).await?;
     } else {
-        send_embed(ctx, msg, "Error", "Usage: `kh!chatbot enable` or `kh!chatbot disable`", 0xED4245).await?;
+        send_embed(ctx, "Error", "Usage: `/chatbot enable` or `/chatbot disable`", 0xED4245).await?;
     }
     
     Ok(())
