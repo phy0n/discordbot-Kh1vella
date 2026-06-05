@@ -245,8 +245,8 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let mins = (bot_uptime_secs % 3600) / 60;
     let uptime_str = format!("{}d {}h {}m", days, hours, mins);
     
-    let created = ctx.created_at().unix_timestamp_millis();
-    let now = serenity::model::Timestamp::now().unix_timestamp_millis();
+    let created = ctx.created_at().timestamp_millis();
+    let now = serenity::model::Timestamp::now().timestamp_millis();
     let api_latency = format!("{}ms", (now - created).max(0));
 
     let db_status = "Online (PostgreSQL)";
