@@ -1,8 +1,7 @@
 use crate::types::{Context, Error};
-use serenity::all::UserId;
 
 pub async fn is_staff(ctx: Context<'_>) -> Result<bool, Error> {
-    let pool = &ctx.data().db;
+    let pool = &ctx.data().db_pool;
     
     let user_id = ctx.author().id.to_string();
 
