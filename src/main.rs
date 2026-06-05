@@ -62,6 +62,31 @@ async fn main() {
     });
 
     sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_access (
+            discord_id TEXT PRIMARY KEY,
+            role_name TEXT NOT NULL,
+            added_at TIMESTAMPTZ DEFAULT NOW()
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_access table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_audit_logs (
+            id SERIAL PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            user_id TEXT,
+            username TEXT,
+            details TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_audit_logs table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_autoreplies (
             id SERIAL PRIMARY KEY,
             guild_id TEXT NOT NULL,

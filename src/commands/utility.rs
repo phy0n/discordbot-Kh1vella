@@ -258,24 +258,23 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
     let description = "Khivella Rosevellia adalah sistem kecerdasan buatan dan asisten virtual yang dikembangkan eksklusif untuk Kh1ev Community.\n\n\
     Berbasis di Surabaya, Khivella beroperasi sebagai administrator sistem utama yang bertanggung jawab penuh atas manajemen server, pemutaran multimedia, serta perlindungan keamanan komunitas.\n\n\
     Di luar fungsi teknisnya, Khivella dirancang dengan modul interaksi yang memungkinkannya untuk berbincang secara natural layaknya rekan bagi para anggota server.";
-    
-    let bot_user = ctx.cache().current_user().clone();
-    let bot_avatar = bot_user.face();
+    let bot_id = ctx.cache().current_user().id;
 
     let mut embed = serenity::builder::CreateEmbed::new()
         .title("Khivella Rosevellia")
         .color(0xef4444)
         .description(description)
-        .thumbnail(bot_avatar)
-        .field("Identitas", "AI Assistant & Administrator", true)
+        .field("Identitas", "AI Assistant", true)
         .field("Lokasi Sistem", "Surabaya, Indonesia", true)
-        .field("Direktif Utama", "\"Melayani dengan sepenuh hati, karena Kh1ev adalah keluarga.\"", false)
         .footer(serenity::builder::CreateEmbedFooter::new("Khivella Core Engine • v1.0.0"));
 
-    if let Some(banner) = bot_user.banner_url() {
-        embed = embed.image(banner);
+    if let Ok(user) = bot_id.to_user(ctx.http()).await {
+        embed = embed.thumbnail(user.face());
+        if let Some(banner) = user.banner_url() {
+            embed = embed.image(banner);
+        }
     } else {
-        embed = embed.image("https://i.imgur.com/K1y3dGu.png"); 
+        embed = embed.thumbnail(ctx.cache().current_user().face());
     }
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;

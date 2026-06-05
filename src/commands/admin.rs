@@ -88,7 +88,7 @@ pub async fn slowmode(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, owners_only, category = "Admin")]
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin")]
 pub async fn chatbot(
     ctx: Context<'_>, 
     #[description = "Action: 'enable' or 'disable'"] action: String
@@ -108,7 +108,7 @@ pub async fn chatbot(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, owners_only, category = "Admin")]
+#[poise::command(slash_command, prefix_command, check = "crate::utils::checks::is_staff", category = "Admin")]
 pub async fn status(
     ctx: Context<'_>, 
     #[description = "Type: 'playing', 'watching', 'listening', 'competing'"] activity_type: String,
@@ -133,7 +133,7 @@ pub async fn status(
 
 use sqlx::Row;
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]
 pub async fn autoreply(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -276,7 +276,7 @@ pub async fn remove_autoreply(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", subcommands("booster_background", "booster_channel", "booster_style", "booster_test", "booster_text"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", check = "crate::utils::checks::is_staff", subcommands("booster_background", "booster_channel", "booster_style", "booster_test", "booster_text"))]
 pub async fn booster(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -389,7 +389,7 @@ pub async fn booster_test(
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_MESSAGES", subcommands("sticky_set", "sticky_remove", "sticky_list"))]
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_MESSAGES", check = "crate::utils::checks::is_staff", subcommands("sticky_set", "sticky_remove", "sticky_list"))]
 pub async fn sticky(_ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -460,7 +460,7 @@ pub async fn sticky_list(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "ADMINISTRATOR")]
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "ADMINISTRATOR", check = "crate::utils::checks::is_staff")]
 pub async fn restart(ctx: Context<'_>) -> Result<(), Error> {
     let msg = "Memulai proses *reboot* sistem secara paksa. Khivella akan offline sejenak dan secara otomatis menyala kembali melalui protokol *auto-recovery* Railway.\n\nHarap tunggu beberapa saat...";
     send_embed(ctx, "System Reboot Initiated", msg, 0xef4444).await?;
