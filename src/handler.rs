@@ -12,6 +12,92 @@ pub async fn event_handler(
             return Ok(());
         }
 
+        if let Some(guild_id) = msg.guild_id {
+            let db_pool = &data.db_pool;
+            let msg_content = msg.content.to_lowercase();
+            
+            let autoreply = sqlx::query(
+                "SELECT response, media_url FROM khivella_autoreplies WHERE guild_id = $1 AND trigger = $2"
+            )
+            .bind(guild_id.to_string())
+            .bind(&msg_content)
+            .fetch_optional(db_pool)
+            .await;
+
+            if let Ok(Some(row)) = autoreply {
+                use sqlx::Row;
+                let response_opt: Option<String> = row.try_get("response").unwrap_or(None);
+                let media_opt: Option<String> = row.try_get("media_url").unwrap_or(None);
+                
+                let mut final_content = String::new();
+                if let Some(resp) = response_opt {
+                    if !resp.is_empty() {
+                        final_content.push_str(&resp);
+                    }
+                }
+                if let Some(media) = media_opt {
+                    if !media.is_empty() {
+                        if !final_content.is_empty() {
+                            final_content.push('\n');
+                        }
+                        final_content.push_str(&media);
+                    }
+                }
+
+                if !final_content.is_empty() {
+                    let _ = msg.channel_id.send_message(&ctx.http, serenity::builder::CreateMessage::new().content(final_content)).await;
+                }
+            }
+
+            if format!("{:?}", msg.kind).contains("PremiumGuild") {
+                let row = sqlx::query("SELECT channel_id, style, text, background_url FROM khivella_booster WHERE guild_id = $1")
+                    .bind(guild_id.to_string()).fetch_optional(db_pool).await;
+
+                if let Ok(Some(r)) = row {
+                    use sqlx::Row;
+                    let channel_id: Option<String> = r.try_get("channel_id").unwrap_or(None);
+                    let text: Option<String> = r.try_get("text").unwrap_or(None);
+                    
+                    let mut msg_text = text.unwrap_or_else(|| "Thank you {username} for boosting the server!".to_string());
+                    msg_text = msg_text.replace("{username}", &msg.author.name);
+                    
+                    if let Some(cid) = channel_id {
+                        if let Ok(id) = cid.parse::<u64>() {
+                            let channel = serenity::model::id::ChannelId::new(id);
+                            let _ = channel.send_message(&ctx.http, serenity::builder::CreateMessage::new().content(msg_text)).await;
+                        }
+                    }
+                }
+            }
+
+            let sticky_row = sqlx::query("SELECT message, last_message_id FROM khivella_sticky WHERE guild_id = $1 AND channel_id = $2")
+                .bind(guild_id.to_string())
+                .bind(msg.channel_id.to_string())
+                .fetch_optional(db_pool)
+                .await;
+
+            if let Ok(Some(r)) = sticky_row {
+                use sqlx::Row;
+                let message: String = r.get("message");
+                let last_message_id: Option<String> = r.try_get("last_message_id").unwrap_or(None);
+
+                if let Some(last_id) = last_message_id {
+                    if let Ok(lid) = last_id.parse::<u64>() {
+                        let _ = ctx.http.delete_message(msg.channel_id, serenity::model::id::MessageId::new(lid), None).await;
+                    }
+                }
+
+                if let Ok(new_msg) = msg.channel_id.send_message(&ctx.http, serenity::builder::CreateMessage::new().content(message)).await {
+                    let _ = sqlx::query("UPDATE khivella_sticky SET last_message_id = $1 WHERE guild_id = $2 AND channel_id = $3")
+                        .bind(new_msg.id.to_string())
+                        .bind(guild_id.to_string())
+                        .bind(msg.channel_id.to_string())
+                        .execute(db_pool)
+                        .await;
+                }
+            }
+        }
+
         let is_enabled = *data.chatbot_enabled.read().await;
 
         if is_enabled {

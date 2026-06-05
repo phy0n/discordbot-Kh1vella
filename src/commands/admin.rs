@@ -130,3 +130,332 @@ pub async fn status(
     
     Ok(())
 }
+
+use sqlx::Row;
+
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", subcommands("add_autoreply", "list_autoreplies", "remove_autoreply"))]
+pub async fn autoreply(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "add")]
+pub async fn add_autoreply(
+    ctx: Context<'_>,
+    #[description = "The text that triggers the auto-reply."] trigger: String,
+    #[description = "The response text."] response: Option<String>,
+    #[description = "An image to attach to the response."] media: Option<serenity::model::channel::Attachment>,
+    #[description = "Use Advanced Components V2 Container style?"] use_container: Option<bool>,
+) -> Result<(), Error> {
+    if response.is_none() && media.is_none() {
+        send_embed(ctx, "Error", "You must provide either a response or a media attachment.", 0xED4245).await?;
+        return Ok(());
+    }
+
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id.to_string(),
+        None => {
+            send_embed(ctx, "Error", "This command can only be used in a server.", 0xED4245).await?;
+            return Ok(());
+        }
+    };
+    
+    let media_url = media.map(|m| m.url.clone());
+    let use_container = use_container.unwrap_or(false);
+
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query(
+        "INSERT INTO khivella_autoreplies (guild_id, trigger, response, media_url, use_container)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (guild_id, trigger) DO UPDATE
+         SET response = EXCLUDED.response, media_url = EXCLUDED.media_url, use_container = EXCLUDED.use_container"
+    )
+    .bind(&guild_id)
+    .bind(&trigger.to_lowercase())
+    .bind(&response)
+    .bind(&media_url)
+    .bind(&use_container)
+    .execute(db_pool)
+    .await;
+
+    match res {
+        Ok(_) => send_embed(ctx, "Success", &format!("Auto-reply added for trigger: `{}`", trigger), 0x2b2d31).await?,
+        Err(e) => send_embed(ctx, "Error", &format!("Failed to save to database: {}", e), 0xED4245).await?,
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list")]
+pub async fn list_autoreplies(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id.to_string(),
+        None => {
+            send_embed(ctx, "Error", "This command can only be used in a server.", 0xED4245).await?;
+            return Ok(());
+        }
+    };
+    
+    let db_pool = &ctx.data().db_pool;
+
+    let replies = sqlx::query(
+        "SELECT trigger, response, media_url FROM khivella_autoreplies WHERE guild_id = $1"
+    )
+    .bind(&guild_id)
+    .fetch_all(db_pool)
+    .await;
+
+    match replies {
+        Ok(rows) => {
+            if rows.is_empty() {
+                send_embed(ctx, "Auto-replies", "No auto-replies found for this server.", 0x2b2d31).await?;
+            } else {
+                let mut content = String::new();
+                for r in rows {
+                    let trigger_text: String = r.get("trigger");
+                    let mut details = String::new();
+                    
+                    if let Ok(resp) = r.try_get::<String, _>("response") {
+                        if !resp.is_empty() {
+                            details.push_str(&format!("Response: {}\n", resp));
+                        }
+                    }
+                    if let Ok(m) = r.try_get::<String, _>("media_url") {
+                        if !m.is_empty() {
+                            details.push_str(&format!("Media: {}\n", m));
+                        }
+                    }
+                    content.push_str(&format!("**Trigger:** `{}`\n{}\n", trigger_text, details));
+                }
+                send_embed(ctx, "Auto-replies", &content, 0x2b2d31).await?;
+            }
+        }
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to fetch from database: {}", e), 0xED4245).await?;
+        }
+    }
+    
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "remove")]
+pub async fn remove_autoreply(
+    ctx: Context<'_>,
+    #[description = "The trigger content to remove."] trigger: String,
+) -> Result<(), Error> {
+    let guild_id = match ctx.guild_id() {
+        Some(id) => id.to_string(),
+        None => {
+            send_embed(ctx, "Error", "This command can only be used in a server.", 0xED4245).await?;
+            return Ok(());
+        }
+    };
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query(
+        "DELETE FROM khivella_autoreplies WHERE guild_id = $1 AND trigger = $2"
+    )
+    .bind(&guild_id)
+    .bind(&trigger.to_lowercase())
+    .execute(db_pool)
+    .await;
+
+    match res {
+        Ok(result) => {
+            if result.rows_affected() > 0 {
+                send_embed(ctx, "Success", &format!("Auto-reply removed for trigger: `{}`", trigger), 0x2b2d31).await?;
+            } else {
+                send_embed(ctx, "Not Found", &format!("No auto-reply found for trigger: `{}`", trigger), 0xED4245).await?;
+            }
+        }
+        Err(e) => {
+            send_embed(ctx, "Error", &format!("Failed to delete from database: {}", e), 0xED4245).await?;
+        }
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_GUILD", subcommands("booster_background", "booster_channel", "booster_style", "booster_test", "booster_text"))]
+pub async fn booster(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "background")]
+pub async fn booster_background(
+    ctx: Context<'_>,
+    #[description = "Direct URL to the background image"] url: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    sqlx::query(
+        "INSERT INTO khivella_booster (guild_id, background_url) VALUES ($1, $2)
+         ON CONFLICT (guild_id) DO UPDATE SET background_url = EXCLUDED.background_url"
+    )
+    .bind(&guild_id).bind(&url).execute(db_pool).await?;
+
+    send_embed(ctx, "Booster System", "Booster banner background URL updated.", 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "channel")]
+pub async fn booster_channel(
+    ctx: Context<'_>,
+    #[description = "Channel where booster messages are sent"] channel: serenity::model::channel::Channel,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    sqlx::query(
+        "INSERT INTO khivella_booster (guild_id, channel_id) VALUES ($1, $2)
+         ON CONFLICT (guild_id) DO UPDATE SET channel_id = EXCLUDED.channel_id"
+    )
+    .bind(&guild_id).bind(&channel.id().to_string()).execute(db_pool).await?;
+
+    send_embed(ctx, "Booster System", &format!("Booster channel set to <#{}>", channel.id()), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "style")]
+pub async fn booster_style(
+    ctx: Context<'_>,
+    #[description = "Choose the message style (banner card or plain text)"] style: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    sqlx::query(
+        "INSERT INTO khivella_booster (guild_id, style) VALUES ($1, $2)
+         ON CONFLICT (guild_id) DO UPDATE SET style = EXCLUDED.style"
+    )
+    .bind(&guild_id).bind(&style).execute(db_pool).await?;
+
+    send_embed(ctx, "Booster System", &format!("Booster style set to: {}", style), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "text")]
+pub async fn booster_text(
+    ctx: Context<'_>,
+    #[description = "Booster text. Placeholders: {username}, {guildName}, etc."] text: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    sqlx::query(
+        "INSERT INTO khivella_booster (guild_id, text) VALUES ($1, $2)
+         ON CONFLICT (guild_id) DO UPDATE SET text = EXCLUDED.text"
+    )
+    .bind(&guild_id).bind(&text).execute(db_pool).await?;
+
+    send_embed(ctx, "Booster System", "Booster message text updated.", 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "test")]
+pub async fn booster_test(
+    ctx: Context<'_>,
+    #[description = "User to test with"] user: Option<serenity::model::user::User>,
+) -> Result<(), Error> {
+    let target = user.unwrap_or_else(|| ctx.author().clone());
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    let row = sqlx::query("SELECT channel_id, style, text, background_url FROM khivella_booster WHERE guild_id = $1")
+        .bind(&guild_id).fetch_optional(db_pool).await?;
+
+    if let Some(r) = row {
+        let channel_id: Option<String> = r.try_get("channel_id").unwrap_or(None);
+        let text: Option<String> = r.try_get("text").unwrap_or(None);
+        
+        let mut msg_text = text.unwrap_or_else(|| "Thank you {username} for boosting the server!".to_string());
+        msg_text = msg_text.replace("{username}", &target.name);
+        if let Some(guild) = ctx.partial_guild().await {
+            msg_text = msg_text.replace("{guildName}", &guild.name);
+        }
+
+        if let Some(cid) = channel_id {
+            if let Ok(id) = cid.parse::<u64>() {
+                let channel = serenity::model::id::ChannelId::new(id);
+                let _ = channel.send_message(&ctx.http(), serenity::builder::CreateMessage::new().content(msg_text)).await;
+            }
+        }
+        send_embed(ctx, "Booster System", "Test message sent.", 0x2b2d31).await?;
+    } else {
+        send_embed(ctx, "Error", "Booster system not configured yet.", 0xED4245).await?;
+    }
+
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "MANAGE_MESSAGES", subcommands("sticky_set", "sticky_remove", "sticky_list"))]
+pub async fn sticky(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "set")]
+pub async fn sticky_set(
+    ctx: Context<'_>,
+    #[description = "The content of the sticky message."] message: String,
+) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let channel_id = ctx.channel_id().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    let sent_msg = ctx.channel_id().send_message(&ctx.http(), serenity::builder::CreateMessage::new().content(&message)).await?;
+    let msg_id = sent_msg.id.to_string();
+
+    sqlx::query(
+        "INSERT INTO khivella_sticky (guild_id, channel_id, message, last_message_id) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (guild_id, channel_id) DO UPDATE SET message = EXCLUDED.message, last_message_id = EXCLUDED.last_message_id"
+    )
+    .bind(&guild_id).bind(&channel_id).bind(&message).bind(&msg_id).execute(db_pool).await?;
+
+    send_embed(ctx, "Sticky Message", "Sticky message set for this channel.", 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "remove")]
+pub async fn sticky_remove(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let channel_id = ctx.channel_id().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    let res = sqlx::query("DELETE FROM khivella_sticky WHERE guild_id = $1 AND channel_id = $2")
+        .bind(&guild_id).bind(&channel_id).execute(db_pool).await?;
+
+    if res.rows_affected() > 0 {
+        send_embed(ctx, "Sticky Message", "Sticky message removed from this channel.", 0x2b2d31).await?;
+    } else {
+        send_embed(ctx, "Error", "No sticky message found in this channel.", 0xED4245).await?;
+    }
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "list")]
+pub async fn sticky_list(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = ctx.guild_id().unwrap().to_string();
+    let db_pool = &ctx.data().db_pool;
+
+    let rows = sqlx::query("SELECT channel_id, message FROM khivella_sticky WHERE guild_id = $1")
+        .bind(&guild_id).fetch_all(db_pool).await?;
+
+    if rows.is_empty() {
+        send_embed(ctx, "Sticky Messages", "No sticky messages in this server.", 0x2b2d31).await?;
+    } else {
+        let mut content = String::new();
+        for r in rows {
+            let cid: String = r.get("channel_id");
+            let msg: String = r.get("message");
+            let display_msg = if msg.len() > 50 {
+                format!("{}...", &msg[..47])
+            } else {
+                msg
+            };
+            content.push_str(&format!("<#{}>: `{}`\n", cid, display_msg));
+        }
+        send_embed(ctx, "Sticky Messages", &content, 0x2b2d31).await?;
+    }
+    Ok(())
+}

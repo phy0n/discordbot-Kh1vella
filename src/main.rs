@@ -61,6 +61,47 @@ async fn main() {
         Default::default()
     });
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_autoreplies (
+            id SERIAL PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            trigger TEXT NOT NULL,
+            response TEXT,
+            media_url TEXT,
+            use_container BOOLEAN DEFAULT false,
+            UNIQUE(guild_id, trigger)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_autoreplies table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_booster (
+            guild_id TEXT PRIMARY KEY,
+            channel_id TEXT,
+            background_url TEXT,
+            style TEXT DEFAULT 'plain text',
+            text TEXT DEFAULT 'Thank you {username} for boosting the server!'
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_booster table: {:?}", e);
+        Default::default()
+    });
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS khivella_sticky (
+            guild_id TEXT NOT NULL,
+            channel_id TEXT NOT NULL,
+            message TEXT NOT NULL,
+            last_message_id TEXT,
+            UNIQUE(guild_id, channel_id)
+        );"
+    ).execute(&pool).await.unwrap_or_else(|e| {
+        error!("Failed to initialize khivella_sticky table: {:?}", e);
+        Default::default()
+    });
+
     let intents = GatewayIntents::non_privileged() 
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MEMBERS
@@ -78,8 +119,10 @@ async fn main() {
             commands: vec![
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
-                lock(), unlock(), slowmode(), chatbot(), status(),
+                lock(), unlock(), slowmode(), chatbot(), status(), autoreply(),
+                booster(), sticky(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
+                grab(), report(), stats(), about(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("kh!".into()),

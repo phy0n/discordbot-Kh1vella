@@ -139,3 +139,59 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, category = "Utility", subcommands("grab_sticker", "grab_emoji", "grab_image"))]
+pub async fn grab(_ctx: Context<'_>) -> Result<(), Error> {
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "sticker", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
+pub async fn grab_sticker(
+    ctx: Context<'_>,
+    #[description = "Sticker ID to grab"] sticker_id: String,
+) -> Result<(), Error> {
+    send_embed(ctx, "Grab", &format!("Sticker grab logic not fully implemented yet for ID: {}", sticker_id), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "emoji", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
+pub async fn grab_emoji(
+    ctx: Context<'_>,
+    #[description = "Emoji to grab (custom emoji format)"] emoji: String,
+) -> Result<(), Error> {
+    send_embed(ctx, "Grab", &format!("Emoji grab logic not fully implemented yet for: {}", emoji), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, rename = "image", required_permissions = "MANAGE_EMOJIS_AND_STICKERS")]
+pub async fn grab_image(
+    ctx: Context<'_>,
+    #[description = "ID of the message containing the image"] message_id: String,
+    #[description = "Name for the new sticker (max 30 chars)"] name: Option<String>,
+) -> Result<(), Error> {
+    send_embed(ctx, "Grab", &format!("Image grab logic not fully implemented yet for msg: {}", message_id), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn report(
+    ctx: Context<'_>,
+    #[description = "User to report"] user: User,
+    #[description = "Reason for the report"] reason: String,
+) -> Result<(), Error> {
+    send_embed(ctx, "Report", &format!("Successfully reported {} for: {}", user.name, reason), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_count = ctx.cache().guilds().len();
+    send_embed(ctx, "Stats", &format!("Kythia/Khivella is currently operating in {} servers.", guild_count), 0x2b2d31).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, category = "Utility")]
+pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
+    send_embed(ctx, "About", "A brief introduction about Kythia/Khivella: A powerful, multi-purpose Discord bot.", 0x2b2d31).await?;
+    Ok(())
+}
