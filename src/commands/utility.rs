@@ -58,7 +58,8 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(icon) = guild.icon_url() { 
         embed = embed.thumbnail(icon); 
     }
-    if let Some(banner) = guild.banner_url() { 
+    if let Some(mut banner) = guild.banner_url() { 
+        banner = banner.replace("?size=1024", "?size=4096");
         embed = embed.image(banner); 
     }
 
@@ -89,7 +90,12 @@ pub async fn userinfo(
         .field("Creation Date", format!("<t:{}:F>", created_timestamp), false);
 
     let embed = if let Some(avatar_url) = user.avatar_url() { embed.thumbnail(avatar_url) } else { embed };
-    let mut embed = if let Some(banner) = user.banner_url() { embed.image(banner) } else { embed };
+    let mut embed = if let Some(mut banner) = user.banner_url() { 
+        banner = banner.replace("?size=1024", "?size=4096");
+        embed.image(banner) 
+    } else { 
+        embed 
+    };
 
     if let Some(m) = member {
         if let Some(joined) = m.joined_at {
@@ -156,7 +162,7 @@ pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
         - Modules Active: `{}`\n\
         - Commands Loaded: `{}`\n\n\
         **✦ Need Support?**\n\
-        - [Join our Kh1ev Server](https://discord.gg/MwNE7Vfb6t)",
+        - [Join Kh1ev Community](https://discord.gg/MwNE7Vfb6t)",
         total_categories, total_commands
     );
 
@@ -282,7 +288,8 @@ pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
 
     if let Ok(user) = bot_id.to_user(ctx.http()).await {
         embed = embed.thumbnail(user.face());
-        if let Some(banner) = user.banner_url() {
+        if let Some(mut banner) = user.banner_url() {
+            banner = banner.replace("?size=1024", "?size=4096");
             embed = embed.image(banner);
         }
     } else {
