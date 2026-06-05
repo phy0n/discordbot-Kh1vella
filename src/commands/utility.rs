@@ -19,7 +19,6 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
         }
     };
 
-    let owner = guild.owner_id.to_user(ctx.http()).await.map(|u| u.name).unwrap_or_else(|_| "Unknown".to_string());
     let created_timestamp = guild_id.created_at().unix_timestamp();
     
     let channels = ctx.http().get_channels(guild_id).await.unwrap_or_default();
@@ -40,25 +39,28 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
         _ => "None",
     };
 
-    let mut description = String::from("Server Information Overview");
-    if let Some(desc) = &guild.description {
-        description = format!("{}\n\n**Description**\n{}", description, desc);
-    }
+    let description = if let Some(desc) = &guild.description {
+        format!("*{}*", desc)
+    } else {
+        "A community server managed by Khivella.".to_string()
+    };
 
-    let embed = serenity::builder::CreateEmbed::new()
-        .title(format!("Server Profile: {}", guild.name))
+    let mut embed = serenity::builder::CreateEmbed::new()
+        .title(&guild.name)
         .description(description)
         .color(0xef4444)
-        .field("General", format!("Owner: {}\nCreated: <t:{}:d>\nServer ID: `{}`", owner, created_timestamp, guild.id), false)
-        .field("Statistics", format!("Members: {} ({} Online)\nRoles: {}\nEmojis: {} ({} Static, {} Animated)", 
-            member_count, online_count, guild.roles.len(), total_emojis, static_emojis, animated_emojis), true)
-        .field("Channels", format!("Total: {}\nText: {}\nVoice: {}", 
-            channels.len(), text_channels, voice_channels), true)
-        .field("Boost Status", format!("Tier: {}\nTotal Boosts: {}", 
-            tier_str, guild.premium_subscription_count.unwrap_or(0)), true);
+        .field("MEMBER DEMOGRAPHICS", format!("Total Members: **{}**\nOnline Members: **{}**", member_count, online_count), true)
+        .field("SERVER ARCHITECTURE", format!("Text Channels: **{}**\nVoice Channels: **{}**\nTotal Roles: **{}**", text_channels, voice_channels, guild.roles.len()), true)
+        .field("COMMUNITY ASSETS", format!("Total Emojis: **{}** ({} Static, {} Animated)\nBoost Level: **{}** ({} Boosts)", total_emojis, static_emojis, animated_emojis, tier_str, guild.premium_subscription_count.unwrap_or(0)), false)
+        .field("CORE INFORMATION", format!("Server ID: `{}`\nEstablished: <t:{}:D>\nServer Owner: <@{}>", guild.id, created_timestamp, guild.owner_id), false)
+        .footer(serenity::builder::CreateEmbedFooter::new("Khivella Server Analytics"));
 
-    let embed = if let Some(icon) = guild.icon_url() { embed.thumbnail(icon) } else { embed };
-    let embed = if let Some(banner) = guild.banner_url() { embed.image(banner) } else { embed };
+    if let Some(icon) = guild.icon_url() { 
+        embed = embed.thumbnail(icon); 
+    }
+    if let Some(banner) = guild.banner_url() { 
+        embed = embed.image(banner); 
+    }
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -80,7 +82,7 @@ pub async fn userinfo(
     let created_timestamp = user.id.created_at().unix_timestamp();
     
     let embed = serenity::builder::CreateEmbed::new()
-        .title(format!("Entity: {}", user.name))
+        .title(format!("User Information: {}", user.name))
         .color(0xef4444)
         .field("Global Name", user.global_name.as_deref().unwrap_or("None").to_string(), true)
         .field("Identifier", user.id.to_string(), true)
@@ -239,7 +241,7 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let db_status = "Online (PostgreSQL)";
 
     let embed = serenity::builder::CreateEmbed::new()
-        .title("📊 Khivella System Diagnostics")
+        .title("Khivella System Diagnostics")
         .color(0xef4444)
         .description("Real-time telemetry and resource usage statistics.")
         .field("Network Reach", format!("**Servers:** {}\n**Cached Users:** {}", guild_count, user_count), true)
@@ -253,20 +255,28 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    let description = "Hai! 👋 Aku **Khivella**, AI Assistant & Discord Bot yang dikembangkan eksklusif untuk **Kh1ev Community**.\nAku hadir buat bikin server kita makin seru dan teratur!";
+    let description = "Khivella Rosevellia adalah sistem kecerdasan buatan dan asisten virtual yang dikembangkan eksklusif untuk Kh1ev Community.\n\n\
+    Berbasis di Surabaya, Khivella beroperasi sebagai administrator sistem utama yang bertanggung jawab penuh atas manajemen server, pemutaran multimedia, serta perlindungan keamanan komunitas.\n\n\
+    Di luar fungsi teknisnya, Khivella dirancang dengan modul interaksi yang memungkinkannya untuk berbincang secara natural layaknya rekan bagi para anggota server.";
     
-    let bot_avatar = ctx.cache().current_user().face();
+    let bot_user = ctx.cache().current_user().clone();
+    let bot_avatar = bot_user.face();
 
-    let embed = serenity::builder::CreateEmbed::new()
-        .title("🌹 Khivella Rosevellia")
+    let mut embed = serenity::builder::CreateEmbed::new()
+        .title("Khivella Rosevellia")
         .color(0xef4444)
         .description(description)
         .thumbnail(bot_avatar)
-        .field("📍 Asal Kota", "Surabaya! Kota pahlawan yang panas tapi bikin semangat terus.", false)
-        .field("💡 Tugasku", "Ngurusin server, nyetelin lagu favorit kalian, sampai ngejaga keamanan dari orang iseng. Semua biar kalian betah nongkrong di sini.", false)
-        .field("💬 Teman Ngobrol", "Lagi bosen atau butuh teman curhat? Langsung *tag* atau sapa aku aja! Aku siap nemenin ngobrol dan bercanda bareng kalian kapan pun. Jangan sungkan ya! ❤️", false)
-        .field("✨ Moto", "*\"Melayani dengan sepenuh hati, karena Kh1ev adalah keluarga.\"*", false)
-        .footer(serenity::builder::CreateEmbedFooter::new("Khivella System Identity • v1.0.0"));
+        .field("Identitas", "AI Assistant & Administrator", true)
+        .field("Lokasi Sistem", "Surabaya, Indonesia", true)
+        .field("Direktif Utama", "\"Melayani dengan sepenuh hati, karena Kh1ev adalah keluarga.\"", false)
+        .footer(serenity::builder::CreateEmbedFooter::new("Khivella Core Engine • v1.0.0"));
+
+    if let Some(banner) = bot_user.banner_url() {
+        embed = embed.image(banner);
+    } else {
+        embed = embed.image("https://i.imgur.com/K1y3dGu.png"); 
+    }
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
