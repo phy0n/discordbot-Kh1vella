@@ -459,3 +459,10 @@ pub async fn sticky_list(ctx: Context<'_>) -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, category = "Admin", required_permissions = "ADMINISTRATOR")]
+pub async fn restart(ctx: Context<'_>) -> Result<(), Error> {
+    send_embed(ctx, "System Restart", "Khivella is restarting... (Railway will bring the bot back online in a few seconds).", 0xED4245).await?;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    std::process::exit(0);
+}

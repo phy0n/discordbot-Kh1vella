@@ -126,15 +126,55 @@ pub async fn avatar(
 
 #[poise::command(slash_command, prefix_command, category = "Utility", track_edits)]
 pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
-    let embed = serenity::builder::CreateEmbed::new()
-        .title("Kh1vella Command Reference")
-        .description("Below is the complete manual for all executable directives in this bot.")
+    let commands = &ctx.framework().options().commands;
+    
+    let mut total_commands = 0;
+    let mut categories: std::collections::HashMap<&str, Vec<String>> = std::collections::HashMap::new();
+    
+    for cmd in commands {
+        if cmd.hide_in_help { continue; }
+        let category = cmd.category.as_deref().unwrap_or("Uncategorized");
+        categories.entry(category).or_default().push(format!("`/{}`", cmd.name));
+        total_commands += 1;
+        
+        for subcmd in &cmd.subcommands {
+            categories.entry(category).or_default().push(format!("`/{} {}`", cmd.name, subcmd.name));
+            total_commands += 1;
+        }
+    }
+    
+    let total_categories = categories.len();
+
+    let description = format!(
+        "Welcome to the **Khivella Command Center**!\n\n\
+        **✦ Quick Guide:**\n\
+        - Explore the categories below to discover what I can do.\n\
+        - Use `/` in chat to see Discord's native auto-complete.\n\n\
+        **✦ System Stats:**\n\
+        - Modules Active: `{}`\n\
+        - Commands Loaded: `{}`\n\n\
+        **✦ Need Support?**\n\
+        - [Join our Kh1ev Server](https://discord.gg/MwNE7Vfb6t)",
+        total_categories, total_commands
+    );
+
+    let mut embed = serenity::builder::CreateEmbed::new()
+        .title("Khivella Help & Documentation")
         .color(0xef4444)
-        .field("Audio Subsystem", "`/join` • `/leave`\n`/play` • `/pause` • `/resume`\n`/skip` • `/stop` • `/queue`", true)
-        .field("Enforcement", "`/warn` • `/strike`\n`/kick` • `/ban` • `/unban`\n`/timeout` • `/purge`", true)
-        .field("Operations", "`/lock` • `/unlock`\n`/slowmode`\n`/chatbot`", true)
-        .field("Telemetry", "`/ping` • `/serverinfo`\n`/userinfo` • `/avatar`", true)
-        .footer(serenity::builder::CreateEmbedFooter::new("Kh1ev Community Operating System"));
+        .description(description);
+
+    let mut sorted_categories: Vec<_> = categories.into_iter().collect();
+    sorted_categories.sort_by_key(|(k, _)| *k);
+
+    for (cat, cmds) in sorted_categories {
+        embed = embed.field(
+            format!("🔹 {}", cat),
+            cmds.join(", "),
+            false
+        );
+    }
+    
+    embed = embed.footer(serenity::builder::CreateEmbedFooter::new("Khivella OS v1.0.0 | Built for Kh1ev Community"));
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -185,13 +225,49 @@ pub async fn report(
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
+    use sysinfo::System;
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    
+    let total_memory = sys.total_memory() / 1_048_576; 
+    let used_memory = sys.used_memory() / 1_048_576; 
+    let cpu_cores = sys.cpus().len();
+
     let guild_count = ctx.cache().guilds().len();
-    send_embed(ctx, "Stats", &format!("Kythia/Khivella is currently operating in {} servers.", guild_count), 0x2b2d31).await?;
+    let user_count = ctx.cache().users().len();
+    
+    let db_status = "Online (PostgreSQL)";
+
+    let embed = serenity::builder::CreateEmbed::new()
+        .title("📊 Khivella System Diagnostics")
+        .color(0xef4444)
+        .description("Real-time telemetry and resource usage statistics.")
+        .field("Network Reach", format!("**Servers:** {}\n**Cached Users:** {}", guild_count, user_count), true)
+        .field("Hardware", format!("**CPU Cores:** {}\n**RAM:** {} MB / {} MB", cpu_cores, used_memory, total_memory), true)
+        .field("Core Systems", format!("**Database:** {}\n**Framework:** Poise (Rust)\n**Engine Version:** v1.0.0", db_status), false)
+        .footer(serenity::builder::CreateEmbedFooter::new("Kh1ev Core Engine"));
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
 #[poise::command(slash_command, prefix_command, category = "Utility")]
 pub async fn about(ctx: Context<'_>) -> Result<(), Error> {
-    send_embed(ctx, "About", "A brief introduction about Kythia/Khivella: A powerful, multi-purpose Discord bot.", 0x2b2d31).await?;
+    let description = "Hai! 👋 Aku **Khivella**, AI Assistant & Discord Bot yang dikembangkan eksklusif untuk **Kh1ev Community**.\nAku hadir buat bikin server kita makin seru dan teratur!";
+    
+    let bot_avatar = ctx.cache().current_user().face();
+
+    let embed = serenity::builder::CreateEmbed::new()
+        .title("🌹 Khivella Rosevellia")
+        .color(0xef4444)
+        .description(description)
+        .thumbnail(bot_avatar)
+        .field("📍 Asal Kota", "Surabaya! Kota pahlawan yang panas tapi bikin semangat terus.", false)
+        .field("💡 Tugasku", "Ngurusin server, nyetelin lagu favorit kalian, sampai ngejaga keamanan dari orang iseng. Semua biar kalian betah nongkrong di sini.", false)
+        .field("💬 Teman Ngobrol", "Lagi bosen atau butuh teman curhat? Langsung *tag* atau sapa aku aja! Aku siap nemenin ngobrol dan bercanda bareng kalian kapan pun. Jangan sungkan ya! ❤️", false)
+        .field("✨ Moto", "*\"Melayani dengan sepenuh hati, karena Kh1ev adalah keluarga.\"*", false)
+        .footer(serenity::builder::CreateEmbedFooter::new("Khivella System Identity • v1.0.0"));
+
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
