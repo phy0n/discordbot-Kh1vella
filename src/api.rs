@@ -131,17 +131,27 @@ async fn send_message(
 }
 
 #[derive(Deserialize)]
+struct SendEmbedField {
+    name: String,
+    value: String,
+    inline: bool,
+}
+
+#[derive(Deserialize)]
 struct SendEmbedRequest {
     channel_id: String,
     title: Option<String>,
+    url: Option<String>,
     description: Option<String>,
     color: Option<String>,
     image_url: Option<String>,
     thumbnail_url: Option<String>,
     author_name: Option<String>,
+    author_url: Option<String>,
     author_icon: Option<String>,
     footer_text: Option<String>,
     footer_icon: Option<String>,
+    fields: Option<Vec<SendEmbedField>>,
 }
 
 async fn send_embed_message(
@@ -154,6 +164,7 @@ async fn send_embed_message(
         let mut embed = serenity::builder::CreateEmbed::new();
         
         if let Some(t) = &payload.title { embed = embed.title(t); }
+        if let Some(u) = &payload.url { embed = embed.url(u); }
         if let Some(d) = &payload.description { embed = embed.description(d); }
         
         if let Some(c_hex) = &payload.color {
@@ -168,6 +179,9 @@ async fn send_embed_message(
         
         if let Some(a_name) = &payload.author_name {
             let mut author = serenity::builder::CreateEmbedAuthor::new(a_name);
+            if let Some(a_url) = &payload.author_url {
+                author = author.url(a_url);
+            }
             if let Some(a_icon) = &payload.author_icon {
                 author = author.icon_url(a_icon);
             }
@@ -180,6 +194,12 @@ async fn send_embed_message(
                 footer = footer.icon_url(f_icon);
             }
             embed = embed.footer(footer);
+        }
+
+        if let Some(fields) = &payload.fields {
+            for f in fields {
+                embed = embed.field(&f.name, &f.value, f.inline);
+            }
         }
 
         let builder = serenity::builder::CreateMessage::new().embed(embed);
