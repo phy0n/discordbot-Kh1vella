@@ -45,6 +45,7 @@ async fn main() {
         }
     };
     info!("Connected to Supabase PostgreSQL");
+    info!("Booting Khivella Core v1.0.1 - Access and Banner fixes applied");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_memory (
