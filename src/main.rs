@@ -78,7 +78,7 @@ async fn main() {
             commands: vec![
                 join(), leave(), play(), pause(), resume(), skip(), stop(), queue(),
                 kick(), ban(), unban(), purge(), timeout(), warn(), strike(),
-                lock(), unlock(), slowmode(), chatbot(),
+                lock(), unlock(), slowmode(), chatbot(), status(),
                 ping(), userinfo(), serverinfo(), avatar(), help(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
@@ -94,6 +94,10 @@ async fn main() {
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                
+                use serenity::all::{ActivityData, OnlineStatus};
+                ctx.set_presence(Some(ActivityData::playing("with Kh1ev")), OnlineStatus::Online);
+
                 Ok(Data {
                     chatbot_enabled: chatbot_state,
                     db_pool: framework_pool,

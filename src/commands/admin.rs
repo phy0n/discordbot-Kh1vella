@@ -107,3 +107,26 @@ pub async fn chatbot(
     
     Ok(())
 }
+
+#[poise::command(slash_command, prefix_command, owners_only, category = "Admin")]
+pub async fn status(
+    ctx: Context<'_>, 
+    #[description = "Type: 'playing', 'watching', 'listening', 'competing'"] activity_type: String,
+    #[rest]
+    #[description = "The status message"] message: String,
+) -> Result<(), Error> {
+    use serenity::all::ActivityData;
+    use serenity::all::OnlineStatus;
+
+    let activity = match activity_type.to_lowercase().as_str() {
+        "watching" => Some(ActivityData::watching(&message)),
+        "listening" => Some(ActivityData::listening(&message)),
+        "competing" => Some(ActivityData::competing(&message)),
+        _ => Some(ActivityData::playing(&message)),
+    };
+
+    ctx.serenity_context().set_presence(activity, OnlineStatus::Online);
+    send_embed(ctx, "Admin: Status", &format!("Status updated successfully."), 0x2b2d31).await?;
+    
+    Ok(())
+}
