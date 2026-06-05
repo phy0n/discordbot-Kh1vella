@@ -72,6 +72,10 @@ async fn main() {
         Default::default()
     });
 
+    // Grant access to Supabase API roles and reload schema cache
+    let _ = sqlx::query("GRANT ALL ON khivella_access TO anon, authenticated;").execute(&pool).await;
+    let _ = sqlx::query("NOTIFY pgrst, 'reload schema';").execute(&pool).await;
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS khivella_audit_logs (
             id SERIAL PRIMARY KEY,

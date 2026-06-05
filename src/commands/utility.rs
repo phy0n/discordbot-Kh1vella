@@ -49,8 +49,8 @@ pub async fn serverinfo(ctx: Context<'_>) -> Result<(), Error> {
         .title(&guild.name)
         .description(description)
         .color(0xef4444)
-        .field("MEMBER DEMOGRAPHICS", format!("Total Members: **{}**\nOnline Members: **{}**", member_count, online_count), true)
-        .field("SERVER ARCHITECTURE", format!("Text Channels: **{}**\nVoice Channels: **{}**\nTotal Roles: **{}**", text_channels, voice_channels, guild.roles.len()), true)
+        .field("MEMBER DEMOGRAPHICS", format!("Total Members: **{}**\nOnline Members: **{}**", member_count, online_count), false)
+        .field("SERVER ARCHITECTURE", format!("Text Channels: **{}**\nVoice Channels: **{}**\nTotal Roles: **{}**", text_channels, voice_channels, guild.roles.len()), false)
         .field("COMMUNITY ASSETS", format!("Total Emojis: **{}** ({} Static, {} Animated)\nBoost Level: **{}** ({} Boosts)", total_emojis, static_emojis, animated_emojis, tier_str, guild.premium_subscription_count.unwrap_or(0)), false)
         .field("CORE INFORMATION", format!("Server ID: `{}`\nEstablished: <t:{}:D>\nServer Owner: <@{}>", guild.id, created_timestamp, guild.owner_id), false)
         .footer(serenity::builder::CreateEmbedFooter::new("Khivella Server Analytics"));
