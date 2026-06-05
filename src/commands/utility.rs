@@ -234,19 +234,31 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let total_memory = sys.total_memory() / 1_048_576; 
     let used_memory = sys.used_memory() / 1_048_576; 
     let cpu_cores = sys.cpus().len();
+    let os_name = System::name().unwrap_or_else(|| "Unknown OS".to_string());
 
     let guild_count = ctx.cache().guilds().len();
     let user_count = ctx.cache().users().len();
     
+    let bot_uptime_secs = ctx.data().start_time.elapsed().as_secs();
+    let days = bot_uptime_secs / 86400;
+    let hours = (bot_uptime_secs % 86400) / 3600;
+    let mins = (bot_uptime_secs % 3600) / 60;
+    let uptime_str = format!("{}d {}h {}m", days, hours, mins);
+    
+    let created = ctx.created_at().unix_timestamp_millis();
+    let now = serenity::model::Timestamp::now().unix_timestamp_millis();
+    let api_latency = format!("{}ms", (now - created).max(0));
+
     let db_status = "Online (PostgreSQL)";
 
     let embed = serenity::builder::CreateEmbed::new()
         .title("Khivella System Diagnostics")
         .color(0xef4444)
         .description("Real-time telemetry and resource usage statistics.")
-        .field("Network Reach", format!("**Servers:** {}\n**Cached Users:** {}", guild_count, user_count), true)
-        .field("Hardware", format!("**CPU Cores:** {}\n**RAM:** {} MB / {} MB", cpu_cores, used_memory, total_memory), true)
-        .field("Core Systems", format!("**Database:** {}\n**Framework:** Poise (Rust)\n**Engine Version:** v1.0.0", db_status), false)
+        .field("Developer Identity", "**Author:** phy0n\n**Organization:** KH1EV Organization", false)
+        .field("Network Reach", format!("**Servers:** {}\n**Cached Users:** {}\n**API Latency:** {}", guild_count, user_count, api_latency), true)
+        .field("Hardware", format!("**OS:** {}\n**CPU Cores:** {}\n**RAM:** {} MB / {} MB", os_name, cpu_cores, used_memory, total_memory), true)
+        .field("Core Systems", format!("**Database:** {}\n**Framework:** Poise (Rust)\n**Engine Version:** v1.0.0\n**Uptime:** {}", db_status, uptime_str), false)
         .footer(serenity::builder::CreateEmbedFooter::new("Kh1ev Core Engine"));
 
     ctx.send(poise::CreateReply::default().embed(embed)).await?;

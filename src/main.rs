@@ -170,6 +170,7 @@ async fn main() {
                     chatbot_enabled: chatbot_state,
                     db_pool: framework_pool,
                     chat_history,
+                    start_time,
                 })
             })
         })
